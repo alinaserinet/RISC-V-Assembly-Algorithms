@@ -6,24 +6,29 @@ str_outOfBound:	.asciz	"index out of bound!"
 str_LB:		.asciz	"["
 str_RB:		.asciz	"]"
 str_EQ:		.asciz	" = "
+str_SP:		.asciz	" "
+str_NL:		.asciz	"\n"
+str_TAB:	.asciz	"\t"
 
 .text
+# put base-of-matrix in (s0)
+# put size-of-matrix in (s1)
 
-la 	s0, matrix
-li 	s1, 5
+la 	s0, matrix			# base-of-matrix in (s0)
+li 	s1, 5				# size-of-matrix in (s1)
+
+
 li 	a0, 2
 li	a1, 2
-jal	printEdge
+jal	printMatrix
 jal	exit
 
 
 
 
-# 'matrix-base' in          	(s0)
-# 'matrix-size' in          	(s1)
-# 'row-index'   in          	(a0) 
-# 'col-index'   in          	(a1)
-# return: 'edge-value' in   	(a0)
+# 'row-index'   in (a0)
+# 'col-index'   in (a1)
+# return: 'edge-value' in (a0)
 getEdge:
 	# save 'return-address' to stack
 	addi	sp, sp, -4
@@ -39,11 +44,9 @@ getEdge:
 	jalr	zero, 0(ra)		# return 'edge-value'
 
 
-# 'matrix-base' in          	(s0)
-# 'matrix-size' in         	(s1)
-# 'row-index'   in          	(a0)
-# 'col-index'   in          	(a1)
-# 'edge-value'  in          	(a2)
+# 'row-index'   in (a0)
+# 'col-index'   in (a1)
+# 'edge-value'  in (a2)
 setEdge:
 	# save 'return-address' to stack
 	addi	sp, sp, -4
@@ -59,11 +62,11 @@ setEdge:
 	jalr	zero, 0(ra) 		# return
 	
 	
-# 'matrix-base' in          	(s0)
-# 'matrix-size' in          	(s1)
-# 'row-index'   in          	(a0)
-# 'col-index'   in          	(a1)
-# return: 'edge-address' in 	(a0)
+# 'matrix-base' in (s0)
+# 'matrix-size' in (s1)
+# 'row-index'   in (a0)
+# 'col-index'   in (a1)
+# return: 'edge-address' in (a0)
 getEdgeAdrress:
 	bgeu	a0, s1, outOfBound 	# check 'row-index' < 'matrix-size'
 	bgeu	a1, s1, outOfBound 	# check 'col-index' < 'matrix-size'
@@ -75,10 +78,63 @@ getEdgeAdrress:
 	jalr	zero, 0(ra)		# return address
 
 
-# 'matrix-base' in          	(s0)
-# 'matrix-size' in          	(s1)
-# 'row-index'   in          	(a0)
-# 'col-index'   in          	(a1)
+# 'matrix-size' in (s1)
+printMatrix:
+	# save 'return-address' to stack
+	addi	sp, sp, -4
+	sw	ra, 0(sp)
+	
+	li	t0, 0			# 'row-counter'(t0) = 0
+	printMatrix_loop1:
+		# check 'row-counter'(t0) < 'matrix-size'(s1)
+		bgeu	t0, s1, printMatrix_end1
+		li	t1, 0		# 'col-counter' (t1) = 0
+		printMatrix_loop2:
+			# check 'col-counter'(t1) < 'matrix-size'(s1)
+			bgeu	t1, s1, printMatrix_end2
+			
+			# save 'row-counter'(t0) and 'col-counter'(t1) to stack
+			addi	sp, sp, -8
+			sw	t0, 0(sp)
+			sw	t1, 4(sp)
+			
+			# initialization arguments for 'getEdge'
+			mv	a0, t0		# copy 'row-counter'(t0) to 'a0'
+			mv	a1, t1		# copy 'col-counter'(t1) to 'a1'
+			
+			jal	getEdge		# get edge = [a0][a1]
+			jal	printInt	# print current edge
+			
+			# print tab'\t' after item
+			la	a0, str_TAB
+			jal	printStr
+			
+			# load 'row-counter'(t0) and 'col-counter'(t1) from stack
+			lw	t0, 0(sp)
+			lw	t1, 4(sp)
+			addi	sp, sp, 8
+			
+			addi	t1, t1, 1	# 'col-counter'(t1) += 1
+			jal	printMatrix_loop2 # jump to loop2
+		printMatrix_end2:
+		
+		# print new-line'\n' after row
+		la	a0, str_NL
+		jal	printStr
+		
+		addi	t0, t0, 1		# 'row-counter'(t0) += 1
+		jal	printMatrix_loop1	# jump to loop1
+	printMatrix_end1:
+	
+	# load 'return-address' from stack
+	lw	ra, 0(sp)
+	addi	sp, sp, 4
+	
+	jalr 	zero, 0(ra)		# return
+
+
+# 'row-index' in (a0)
+# 'col-index' in (a1)
 printEdge:
 	# save 'return-address' to stack
 	addi	sp, sp, -4
@@ -124,13 +180,13 @@ printEdge:
 	jalr 	zero, 0(ra)		# return
 	
 
-# number	in		(a0)	
+# number in (a0)
 printInt:
 	li	a7, 1			# syscall for print int-number
 	ecall				# print number
 	jalr	zero, 0(ra)		# return
 	
-# string 	in	    	(a0)	
+# string in (a0)
 printStr:
 	li	a7, 4			# syscall for print string
 	ecall				# print string
