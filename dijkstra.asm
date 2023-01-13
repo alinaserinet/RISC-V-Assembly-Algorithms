@@ -136,7 +136,7 @@ printMatrix:
 		bgeu	t0, s1, printMatrix_end1
 		li	t1, 0		# 'col-counter' (t1) = 0
 		printMatrix_loop2:
-			# check 'col-counter'(t1) < 'matrix-size'(s1)
+			# check 'col-counter'(t1) < 'matrix-cols'(s2)
 			bgeu	t1, s2, printMatrix_end2
 			
 			# save 'row-counter'(t0) and 'col-counter'(t1) to stack
