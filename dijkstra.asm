@@ -1,6 +1,7 @@
 .data
 matrix: .word 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
 
+
 # strings
 str_outOfBound:	.asciz	"index out of bound!"
 str_LB:		.asciz	"["
@@ -16,15 +17,44 @@ str_TAB:	.asciz	"\t"
 
 la 	s0, matrix			# base-of-matrix in (s0)
 li 	s1, 5				# size-of-matrix in (s1)
-
-
-li 	a0, 2
-li	a1, 2
+li	a0, 10
+mv	s1, a0
+li	a1, -1
+jal	initialSquareMatrix
+mv	s0, a0
 jal	printMatrix
+
 jal	exit
 
 
-
+# 'size-of-matrix' in (a0)
+# 'default-value' in (a1)
+# return: base of new matrix (a0)
+initialSquareMatrix:	
+	mul	t1, a0, a0		# 'items-count'(t1) = 'rows-count'(a0) * 'col-count'(a0)
+	slli	t0, t1, 2		# 'items-bytes'(t0) = 'items-count'(t1) * 4 'int-size'
+	sub	sp, sp, t0		# reducing stack-pointer by the size of items-byte
+	mv	a0, sp			# 'matrix-base'(a0) = stack-pointer
+	
+	# save 'return-address' to stack
+	addi	sp, sp, -4
+	sw	ra, 0(sp)
+	
+	mv	t0, a0			# 'bytes-counter'(t0) = 'matrix-base'(a0)
+	li	t2, 0			# 'items-counter'(t2) = 0
+	initialSquareMatrix_loop:
+		bge	t2, t1, initialSquareMatrix_end
+		sw	a1, 0(t0)
+		addi	t0, t0, 4
+		addi	t2, t2, 1
+		jal	initialSquareMatrix_loop
+	initialSquareMatrix_end:
+	# load 'return-address' from stack
+	lw	ra, 0(sp)
+	addi	sp, sp, 4
+	
+	jalr	zero, 0(ra)		# return - base-of-matrix in (a0)
+	
 
 # 'row-index'   in (a0)
 # 'col-index'   in (a1)
@@ -77,7 +107,7 @@ getEdgeAdrress:
 	add	a0, t0, t1		# address += cols-offset
 	jalr	zero, 0(ra)		# return address
 
-
+# 'matrix-base'	in (s0)
 # 'matrix-size' in (s1)
 printMatrix:
 	# save 'return-address' to stack
