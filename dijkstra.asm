@@ -1,6 +1,4 @@
 .data
-matrix: .word 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
-
 
 # strings
 str_outOfBound:	.asciz	"index out of bound!"
@@ -10,25 +8,29 @@ str_EQ:		.asciz	" = "
 str_SP:		.asciz	" "
 str_NL:		.asciz	"\n"
 str_TAB:	.asciz	"\t"
+str_enterGraph:	.asciz	"Enter Graph:"
 
 .text
 # put base-of-matrix in (s0)
 # put matrix-rows    in (s1)
 # put matrix-cols    in (s2)
-
-la 	s0, matrix			# base-of-matrix in (s0)
-li 	s1, 1				# matrix-rows in (s1)
-li	s2, 10				# matrix-cols in (s2)
-
-mv	a1, s1
-mv	a1, s2
-li	a0, -1
-jal 	initialMatrix
-mv	s0, a0
-jal	printMatrix
+jal	readGraph
 
 jal	exit
 
+
+readGraph:
+	addi	sp, sp, -4
+	sw	ra, 0(sp)
+	
+	li	a1, 200
+	jal	readStr
+	jal	strReverseInPlace
+	jal	printStr
+	
+	lw	ra, 0(sp)
+	jalr	zero, 0(ra)
+	
 
 # 'rows-count' in            (a1)
 # 'cols-count' in            (a2)
@@ -38,9 +40,9 @@ jal	exit
 initialMatrix:
 	mul	t1, a1, a2		# 'items-count'(t1) = 'rows-count'(a1) * 'col-count'(a2)
 	slli	t0, t1, 2		# 'items-bytes'(t0) = 'items-count'(t1) * 4 'int-size'
-	sub	sp, sp, t0		# reducing stack-pointer by the size of items-byte
+	sub	gp, gp, t0		# reducing global-pointer by the size of items-byte
 	mv	t3, a0			# copy default-value to (t3)
-	mv	a0, sp			# 'matrix-base'(a0) = stack-pointer
+	mv	a0, gp			# 'matrix-base'(a0) = stack-pointer
 	
 	# save 'return-address' to stack
 	addi	sp, sp, -4
@@ -179,8 +181,11 @@ printMatrix:
 	jalr 	zero, 0(ra)		# return
 
 
-# 'row-index' in (a0)
-# 'col-index' in (a1)
+# 'matrix-base' in (s0)
+# 'matrix-rows' in (s1)
+# 'matrix-cols' in (s2)
+# 'row-index'   in (a0)
+# 'col-index'   in (a1)
 printItem:
 	# save 'return-address' to stack
 	addi	sp, sp, -4
@@ -225,6 +230,49 @@ printItem:
 	
 	jalr 	zero, 0(ra)		# return
 	
+	
+# string-base in (a0)
+# -----------------------
+# reverse string in place
+strReverseInPlace:
+	# save return-address to stack
+	addi	sp, sp, -4
+	sw	ra, 0(sp)
+	
+	mv	t1, a0			# copy string-base(a0) to (t1)
+	
+	# loop for finding end-of-string
+	strReverse_loop1:
+		lbu	t0, 0(t1)	# load current char
+		beq	t0, zero, strReverse_end1	# check current-char is equal to '\0'
+		addi	t1, t1, 1	# current-char-address (t1) += 1
+		jal	strReverse_loop1	# jump
+	strReverse_end1:
+	# reduce t1 to skip '\0'
+	addi	t1, t1, -1
+	mv	t0, a0			# copy string-base(a0) to (t0)
+	
+	# loop for swap chars
+	strReverse_loop2:
+		bge	t0, t1, strReverse_end2	# check t0 < t1
+		lbu	t2, 0(t0)	# load first-char
+		lbu	t3, 0(t1)	# load last-char
+		
+		# swap first and last chars
+		sb	t2, 0(t1)	
+		sb	t3, 0(t0)
+		
+		addi	t0, t0, 1	# (t0) += 1
+		addi	t1, t1, -1	# (t1) -= 1
+		jal	strReverse_loop2	# jump
+	strReverse_end2:
+	
+	# load return-address from stack
+	lw	ra, 0(sp)
+	addi	sp, sp, 4
+	
+	jalr	zero, 0(ra)		# return
+
 
 # number in (a0)
 printInt:
@@ -236,6 +284,16 @@ printInt:
 printStr:
 	li	a7, 4			# syscall for print string
 	ecall				# print string
+	jalr	zero, 0(ra)		# return
+	
+# string-length in a1
+# ---------------------------
+# return: string-base in (a0)	
+readStr:
+	sub	gp, gp, a1		# reduce global-pointer for saving string
+	mv	a0, gp			# string-base(a0) = global-base
+	li	a7, 8			# load 8 for read-string syscall
+	ecall				# read string
 	jalr	zero, 0(ra)		# return
 	
 
