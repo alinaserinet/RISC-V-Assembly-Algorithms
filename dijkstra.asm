@@ -25,8 +25,8 @@ readGraph:
 	
 	li	a1, 200
 	jal	readStr
-	jal	strReverseInPlace
-	jal	printStr
+	jal	strToNum
+	jal	printInt
 	
 	lw	ra, 0(sp)
 	jalr	zero, 0(ra)
@@ -274,17 +274,72 @@ strReverseInPlace:
 	jalr	zero, 0(ra)		# return
 
 
+# 'string'   in (a0)
+# ----------------------------
+# return: 'number' in (a0)
+strToNum:
+	# save return-address to stack
+	addi	sp, sp, -4
+	sw	ra, 0(sp)
+	
+	# reverse string
+	jal	strReverseInPlace
+
+	mv	t0, a0			# copy string-base to (t0)
+	li	a0, 0			# initial final-number
+	li	t2, 1			# (t2) for pow
+	li	t3, 10			# (t3) for 10 number
+	strToNum_loop:
+		lbu	t1, 0(t0)	# load current-char
+		beq	t1, zero, strToNum_end 	# check char equal to '\0'
+		
+		# check char is less than '0'
+		addi	t4, t1, -48
+		blt	t4, zero, strToNum_continue
+		
+		# check char is greater than '9'
+		addi	t4, t1, -57
+		blt	zero, t4, strToNum_continue
+		
+		andi 	t1, t1, 0xf	# (t1) = AND char with 1111 to remove extra bits
+		mul	t1, t1, t2	# (t1) = (t1) * pow(t2)
+		add	a0, a0, t1	# final-number(a0) += (t1)
+		mul	t2, t2, t3	# (t2)pow *= 10
+		strToNum_continue:
+		addi	t0, t0, 1	# (t0) += 1 to get next char address
+		jal	strToNum_loop	# jump
+	strToNum_end:
+	lbu	t1, -1(t0)		# load first-char in string
+	
+	# check first-char in string is equal to '-'
+	addi	t1, t1, -45
+	bne	t1, zero, strToNum_next
+	
+	# first-char = '-' => final-number *= -1
+	li	t2, -1			
+	mul	a0, a0, t2
+	strToNum_next:
+	
+	# load return-address from stack
+	lw	ra, 0(sp)
+	addi	sp, sp, 4
+	
+	jalr	zero, 0(ra)		# return
+	
+
 # number in (a0)
 printInt:
 	li	a7, 1			# syscall for print int-number
 	ecall				# print number
 	jalr	zero, 0(ra)		# return
 	
+	
 # string in (a0)
 printStr:
 	li	a7, 4			# syscall for print string
 	ecall				# print string
 	jalr	zero, 0(ra)		# return
+	
 	
 # string-length in a1
 # ---------------------------
