@@ -10,36 +10,75 @@ str_NL:			.asciz	"\n"
 str_TAB:		.asciz	"\t"
 str_enterGraph:		.asciz	"Enter Graph:"
 str_enterNodesLen: 	.asciz	"Enter count of nodes:\n"
+test:			.asciz  "1-3"
 
 .text
 # put base-of-matrix in (s0)
 # put matrix-rows    in (s1)
 # put matrix-cols    in (s2)
-jal	readGraph
 
+la	a0, test
+jal	strToNum
+jal	printInt
 jal	exit
 
 
 readGraph:
 	addi	sp, sp, -4
 	sw	ra, 0(sp)
-	la	a0, str_enterNodesLen
-	jal	printStr
-	jal	readInt
-	mv	a1, a0
-	mv	a2, a0
-	mv	s1, a1
-	mv	s2, a2
-	li	a0, 0
-	jal	initialMatrix
-	mv	s0, a0
-	jal	printMatrix
+	la	a0, test
+	
+	li	a1, 32
+	jal	strSplit
+	
+	lw	ra, 0(sp)
+	addi	sp, sp, 4
+	jalr	zero, 0(ra)
+	
+	
+	
+splitEdges:
+	addi	sp, sp, -4
+	sw	ra, 0(sp)
+	
+	la	a0, test
+	li	a1, 44 # ,
+	jal	strSplit
 	
 	lw	ra, 0(sp)
 	addi	sp, sp, 4
 	jalr	zero, 0(ra)
 	
 
+# string-base in (a0)
+# nodes-count in (a1)
+createMatrix:	
+	addi	sp, sp, -12
+	sw	ra, 0(sp)
+	sw	a0, 4(sp)
+	sw	a1, 8(sp)
+	
+	li	a1, 45
+	li	a2, 44
+	
+	jal	strSplit
+	jal	printStr
+	
+	mv	a2, a1
+	li	a0, 0
+	jal 	initialMatrix
+	mv	s0, a0
+	mv	s1, a1
+	mv	s2, a2
+	
+	
+	jal	printMatrix
+	
+	lw	ra, 0(sp)
+	addi	sp, sp, 4
+	jalr	zero, 0(ra)
+	
+	
 # 'rows-count' in            (a1)
 # 'cols-count' in            (a2)
 # 'default-value' in         (a0)
@@ -276,6 +315,7 @@ strReverseInPlace:
 	strReverse_end2:
 	
 	# load return-address from stack
+	jal	printStr
 	lw	ra, 0(sp)
 	addi	sp, sp, 4
 	
@@ -334,6 +374,44 @@ strToNum:
 	
 	jalr	zero, 0(ra)		# return
 	
+	
+	
+# string-base in (a0)
+# split-char  in (a1)
+# split-char  in (a2)
+# ------------------
+# return:
+# array-base in (a0)
+# array-size in (a1)
+# array-end  in (a2)
+strSplit:
+	addi	sp, sp, -4
+	sw	ra, 0(sp)
+	
+	li	t1, 1
+	mv	t0, a0
+	strSplit_loop:
+		lbu	t2, 0(t0)
+		beq	t2, zero, strSplit_end
+		bne	t2, a1, strSplit_continue1
+		sb	zero, 0(t0)
+		addi	t1, t1, 1
+		jal	strSplit_continue2
+	strSplit_continue1:
+		bne	t2, a2, strSplit_continue2
+		sb	zero, 0(t0)
+		addi	t1, t1, 1
+	strSplit_continue2:
+		addi	t0, t0, 1
+		jal	strSplit_loop
+	strSplit_end:
+	
+	mv	a1, t1
+	lw	ra, 0(sp)
+	addi	sp, sp, 4
+	
+	jalr	zero, 0(ra)
+	
 
 # number in (a0)
 printInt:
@@ -354,7 +432,7 @@ printStr:
 	jalr	zero, 0(ra)		# return
 	
 	
-# string-length in a1
+# string-length in (a1)
 # ---------------------------
 # return: string-base in (a0)	
 readStr:
