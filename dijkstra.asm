@@ -1,14 +1,15 @@
 .data
 
 # strings
-str_outOfBound:	.asciz	"index out of bound!"
-str_LB:		.asciz	"["
-str_RB:		.asciz	"]"
-str_EQ:		.asciz	" = "
-str_SP:		.asciz	" "
-str_NL:		.asciz	"\n"
-str_TAB:	.asciz	"\t"
-str_enterGraph:	.asciz	"Enter Graph:"
+str_outOfBound:		.asciz	"index out of bound!"
+str_LB:			.asciz	"["
+str_RB:			.asciz	"]"
+str_EQ:			.asciz	" = "
+str_SP:			.asciz	" "
+str_NL:			.asciz	"\n"
+str_TAB:		.asciz	"\t"
+str_enterGraph:		.asciz	"Enter Graph:"
+str_enterNodesLen: 	.asciz	"Enter count of nodes:\n"
 
 .text
 # put base-of-matrix in (s0)
@@ -22,13 +23,20 @@ jal	exit
 readGraph:
 	addi	sp, sp, -4
 	sw	ra, 0(sp)
-	
-	li	a1, 200
-	jal	readStr
-	jal	strToNum
-	jal	printInt
+	la	a0, str_enterNodesLen
+	jal	printStr
+	jal	readInt
+	mv	a1, a0
+	mv	a2, a0
+	mv	s1, a1
+	mv	s2, a2
+	li	a0, 0
+	jal	initialMatrix
+	mv	s0, a0
+	jal	printMatrix
 	
 	lw	ra, 0(sp)
+	addi	sp, sp, 4
 	jalr	zero, 0(ra)
 	
 
@@ -332,6 +340,11 @@ printInt:
 	li	a7, 1			# syscall for print int-number
 	ecall				# print number
 	jalr	zero, 0(ra)		# return
+	
+readInt:
+	li	a7, 5
+	ecall
+	jalr	zero, 0(ra)
 	
 	
 # string in (a0)
