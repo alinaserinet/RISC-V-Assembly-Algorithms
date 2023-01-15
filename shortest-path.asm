@@ -2,12 +2,30 @@
 matrix:		.word 0, 1, 2, 3, 0, 1, 2, 3, 0
 
 # strings
-str_outOfBound:		.asciz	"index out of bound!"
-str_TAB:			.asciz	"\t"
-str_NL:				.asciz	"\n"
-str_line:			.asciz	"----------------------------------\n"
+str_outOfBound:			.asciz	"index out of bound!"
+str_TAB:				.asciz	"\t"
+str_NL:					.asciz	"\n"
+str_line:				.asciz	"----------------------------------\n"
+str_enterNodesCount:	.asciz	"Enter nodes count: "
+str_enterEdge:			.asciz	"\nedge "
+str_to:					.asciz	" to "
+str_colon:				.asciz	": "
+
 
 .text
+
+la		a0, str_enterNodesCount
+jal		printStr
+
+jal		readInt
+mv		s1, a0
+
+jal		readGraph
+mv		s0, a0
+mv		s2, s1
+jal		printMatrix
+
+
 
 li		s2, 5
 li		s1, 2
@@ -152,6 +170,121 @@ minDistance:
 	# restore stack-pointer to pervious position.
 	addi	sp, sp, 24
 	jalr	zero, 0(ra)
+	
+# nodes-count in (s1)
+# ---------------------------
+# return: matrix-base in (a0)
+readGraph:
+	# increase stack-pointer for saving items
+	addi	sp, sp, -20
+	
+	# store return-address to the stack
+	sw		ra, 0(sp)
+	
+	# stroe saved-registers to the stack
+	sw		s0, 4(sp)		# s0 for matrix-base for sending into setItem 
+	sw		s2, 8(sp)		# s2 for cols-count for sending into setItem
+	sw		s3, 12(sp)		# s3 for rows-counter
+	sw		s4, 16(sp)		# s4 for cols-counter
+	
+	# set 'rows-count'(a1), 'cols-count'(a2) for matrix-alloc arguments.
+	mv		a1, s1			# 'rows-count'(a1) = 'nodes-count'(s1)
+	mv		a2, s1			# 'cols-count'(a2) = 'nodes-count'(s2)
+	jal		matrixAlloc		# allocate a matrix
+	
+	# save base of new matrix in (s0), for using in setItem.
+	mv		s0, a0			# (s0) = 'base of new matrix'(a0)
+	
+	# save 'nodes-count' in (s2) as cols-count for using in setItem.
+	mv		s2, s1			# (s2) = 'nodes-count'(s1)
+	
+	# Initialization rows-counter(s3)
+	li		s3, 0			# rows-counter(s3) = 0
+	
+	readGraph_loop1:
+		# checking rows-counter(s3) is less than < rows-count(s1), else break.
+		bge		s3, s1, readGraph_end1
+		
+		# Initialization cols-counter(s4)
+		addi	s4, s3, 1	# cols-counter(s4) = rows-counter(s3) + 1
+			readGraph_loop2:
+				# checking cols-counter(s4) is less than < cols-count(s2), else break.
+				bge		s4, s2, readGraph_end2
+				
+				# print messages for reading graph edges:
+				
+				# print "edge "
+				la		a0, str_enterEdge	
+				jal		printStr		
+				
+				# print source-node
+				mv		a0, s3
+				jal		printInt
+				
+				# print " to "
+				la		a0, str_to
+				jal		printStr
+				
+				# print destination-node
+				mv		a0, s4
+				jal		printInt
+				
+				# print ":"
+				la		a0, str_colon
+				jal		printStr
+				
+				# read edge-weight
+				jal		readInt
+				
+				
+				mv		a2, a0			# copy edge--weight(a0) into (a2) as 'item-value' for setItem.
+				mv		a0, s3			# copy 'row-counter'(s3) into (a0) as 'row-index' for setItem.
+				mv		a1, s4			# copy 'col-counter'(s4) into (a1) as 'col-index' for setItem.
+				
+				addi	sp, sp, -4
+				
+				# store argument for using in lower-triangle items setting.
+				sw		a2, 0(sp)		# save 'item-value'(a2)
+				
+				# set item[row-counter][col-counter]
+				jal		setItem
+				
+				# load argument for using in lower-triangle items setting.
+				lw		a2, 0(sp)		# load 'item-value'(a2)
+				
+				addi	sp, sp, 4
+				
+				# swap 'row-index' and 'col-index' for setItem arguments.
+				mv		a0, s4			# copy 'col-counter'(s4) into (a0) as 'row-index' for setItem.
+				mv		a1, s3			# copy 'row-counter'(s3) into (a1) as 'col-index' for setItem.
+				# set item[col-counter][row-counter]
+				jal		setItem
+				
+				# increase 'col-counter'(s4)
+				addi	s4, s4, 1		# 'col-counter'(s4) += 1
+				jal		readGraph_loop2	# jump
+			readGraph_end2:
+			
+			# increase 'row-counter'(s3)
+			addi	s3, s3, 1			# 'row-counter'(s3) += 1
+			jal		readGraph_loop1		# jump
+	readGraph_end1:
+	mv		a0, s0			# copy base-address into (a0): for return
+	# load saved-registers from the stack
+	lw		s0, 4(sp)		# s0 for matrix-base for sending into setItem 
+	lw		s2, 8(sp)		# s2 for cols-count for sending into setItem
+	lw		s3, 12(sp)		# s3 for rows-counter
+	lw		s4, 16(sp)		# s4 for cols-counter
+	
+	# load return-address from the stack
+	lw		ra, 0(sp)
+	
+	# restore stack-pointer to pervious position
+	addi	sp, sp, 20
+	
+	jalr	zero, 0(ra)		# return
+	
+	
 
 # 'matrix-base' in (s0)
 # 'matrix-rows' in (s1)
@@ -306,6 +439,13 @@ printMatrix:
 	
 	jalr 	zero, 0(ra)		# return
 
+# read int from input
+# -------------------
+# return: int in (a0)
+readInt:
+	li		a7, 5
+	ecall
+	jalr	zero, 0(ra)
 
 # number in (a0)
 printInt:
