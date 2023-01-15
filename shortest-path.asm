@@ -2,27 +2,119 @@
 matrix:		.word 0, 1, 2, 3, 0, 1, 2, 3, 0
 
 # strings
-str_outOfBound:	.asciz	"index out of bound!"
+str_outOfBound:		.asciz	"index out of bound!"
+str_TAB:			.asciz	"\t"
+str_NL:				.asciz	"\n"
+str_line:			.asciz	"----------------------------------\n"
 
 .text
 
-li	a1, 3
-li	a2, 3
-mv	s1, a1
-mv	s2, a2
-jal	matrixAlloc
-mv	s0, a0
-li	a0, -1
-jal	matrixSetAll
-li	a0, 1
-li	a1, 2
-jal	getItem
-jal	printInt
-
+jal	dijkstra
 
 
 
 jal	exit
+
+dijkstra:
+	addi	sp, sp, -16
+	sw		ra, 0(sp)
+	sw		s0, 4(sp)
+	sw		s1, 8(sp)
+	sw		s2, 12(sp)
+	
+	
+	li		a1, 1
+	li		a2, 3
+	mv		s1, a1
+	mv		s2, a2
+	jal		matrixAlloc
+	mv		s0, a0
+	li		a0, -1
+	jal		matrixSetAll
+	li		a0, 0
+	li		a1, 2
+	li		a2, 0
+	jal		setItem
+	jal		printMatrix
+	
+	lw		ra, 0(sp)
+	lw		s0, 4(sp)
+	lw		s1, 8(sp)
+	lw		s2, 12(sp)
+	
+# base of shortest-path-tree-set in (s3)
+# base of distances-array in (s4)
+# vertex-count(nodes-count) in (s2)
+minDistance:
+	# store return-address in stack
+	addi	sp, sp, -24
+	sw		ra, 0(sp)
+	
+	# store save-register (s0) in the stacke, for using (s0) to sent it to getItem as base-address
+	sw		s0, 4(sp)
+	
+	# store save-register (s1) in the stack, for using (s1) to send it to getItem  as rows-count
+	sw		s1, 8(sp)
+	
+	# store saved-registers in stack
+	sw		s5, 12(sp)
+	sw		s6, 16(sp)
+	sw		s7, 20(sp)
+	
+	# values Initialization
+	li		s1, 1	     			# rows-count(s1) is equal '1' for an array to send to 'getItem'
+	li		s5, -1					# Initialize min-value = (-1) => in unsigned it's Max-value
+	li		s6, -1					# Initialize min-index
+	li		s7, 0					# Initialize vertex-counter (v = 0)
+	
+	
+	minDistance_loop:
+		bge		s7, s2, minDistance_end		# checking vertex-counter is less than vertex-count
+		
+		# base of shortest-path-tree-set is in (s3), copy it into (s0) for sending to getItem as base-address
+		mv		s0, s3
+		
+		# (s1) = 1, (s2) = vertex-count(nodes-count)
+	
+		# getting sptSet[0][vertex-counter(a1)]				
+		li		a0, 0				# row-index (a0) = '0' for an array
+		mv		a1, s7				# col-index (a1) = vertex-counter(s7)
+		jal		getItem				# getting sptSet[0][vertex-counter(a1)]
+		
+		# checking sptSet[0][vertex-counter(a1)] == false, else continue
+		bne		a0, zero, minDistance_continue	
+		
+		# base of distances-array is in (s4), copy it into (s0) for sending to getItem as base-address
+		mv		s0, s4
+		
+		# getting distances[0][vertex-counter(a1)]	
+		li		a0, 0				# row-index (a0) = '0' for an array
+		mv		a1, s7				# col-index (a1) = vertex-counter(s7)
+		jal		getItem				#getting distances[0][vertex-counter(a1)]
+		
+		# checking distances[0][vertex-counter(a1)] <= min-value(s5), else continue
+		bltu	s5, a0, minDistance_continue
+		
+		mv		s5, a0				# min-value(s5) = distances[0][vertex-counter(s7)]
+		mv		s6, s7				# min-index(s6) = vertex-counter(s7)
+		
+	minDistance_continue:
+		addi	s7, s7, 1			# increasing vertex-counter(s7), vertex-counter(s7) += 1
+	minDistance_end:
+	
+	# restore return-address: loading it from the stack.
+	lw		ra, 0(sp)
+	
+	# restore saved-register: loading them from the stack.
+	lw		s0, 4(sp)
+	lw		s1, 8(sp)
+	lw		s5, 12(sp)
+	lw		s6, 16(sp)
+	lw		s7, 20(sp)
+	
+	# restore stack-pointer to pervious position.
+	addi	sp, sp, 24
+	jalr	zero, 0(ra)
 
 # 'matrix-base' in (s0)
 # 'matrix-rows' in (s1)
@@ -119,7 +211,64 @@ getItemAddress:
 	add	t0, s0, t0		# address = base + rows-offset
 	add	a0, t0, t1		# address += cols-offset
 	jalr	zero, 0(ra)		# return address
+
+
+# 'matrix-base' in (s0)
+# 'matrix-rows' in (s1)
+# 'matrix-cols' in (s2)
+printMatrix:
+	# save 'return-address' to stack
+	addi	sp, sp, -4
+	sw	ra, 0(sp)
 	
+	li	t0, 0		# 'row-counter'(t0) = 0
+	printMatrix_loop1:
+		# check 'row-counter'(t0) < 'matrix-size'(s1)
+		bgeu	t0, s1, printMatrix_end1
+		li	t1, 0		# 'col-counter' (t1) = 0
+		printMatrix_loop2:
+			# check 'col-counter'(t1) < 'matrix-cols'(s2)
+			bgeu	t1, s2, printMatrix_end2
+			
+			# save 'row-counter'(t0) and 'col-counter'(t1) to stack
+			addi	sp, sp, -8
+			sw	t0, 0(sp)
+			sw	t1, 4(sp)
+			
+			# initialization arguments for 'getItem'
+			mv	a0, t0		# copy 'row-counter'(t0) to 'a0'
+			mv	a1, t1		# copy 'col-counter'(t1) to 'a1'
+			
+			jal	getItem		# get item = [a0][a1]
+			jal	printInt	# print current item
+			
+			# print tab'\t' after item
+			la	a0, str_TAB
+			jal	printStr
+			
+			# load 'row-counter'(t0) and 'col-counter'(t1) from stack
+			lw	t0, 0(sp)
+			lw	t1, 4(sp)
+			addi	sp, sp, 8
+			
+			addi	t1, t1, 1	# 'col-counter'(t1) += 1
+			jal	printMatrix_loop2 # jump to loop2
+		printMatrix_end2:
+		
+		# print new-line'\n' after row
+		la	a0, str_NL
+		jal	printStr
+		
+		addi	t0, t0, 1		# 'row-counter'(t0) += 1
+		jal	printMatrix_loop1	# jump to loop1
+	printMatrix_end1:
+	
+	# load 'return-address' from stack
+	lw	ra, 0(sp)
+	addi	sp, sp, 4
+	
+	jalr 	zero, 0(ra)		# return
+
 
 # number in (a0)
 printInt:
