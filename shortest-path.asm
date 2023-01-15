@@ -45,6 +45,8 @@ dijkstra:
 # base of shortest-path-tree-set in (s3)
 # base of distances-array in (s4)
 # vertex-count(nodes-count) in (s2)
+# --------------------------------------
+# return min-index in (a0)
 minDistance:
 	# store return-address in stack
 	addi	sp, sp, -24
@@ -101,6 +103,8 @@ minDistance:
 	minDistance_continue:
 		addi	s7, s7, 1			# increasing vertex-counter(s7), vertex-counter(s7) += 1
 	minDistance_end:
+	
+	mv		a0, s6					# (a0) = min-index(s6), for return it
 	
 	# restore return-address: loading it from the stack.
 	lw		ra, 0(sp)
