@@ -9,38 +9,71 @@ str_line:			.asciz	"----------------------------------\n"
 
 .text
 
-jal	dijkstra
+li		s2, 5
+li		s1, 2
+jal		dijkstra
 
 
 
 jal	exit
 
+# base of graph-matrix in (s0)
+# vertex-count(nodes-count) in (s2)
+# source in (s1)
 dijkstra:
-	addi	sp, sp, -16
+	addi	sp, sp, -4
 	sw		ra, 0(sp)
-	sw		s0, 4(sp)
-	sw		s1, 8(sp)
-	sw		s2, 12(sp)
+	# Initialization shortest-path-tree-set and save its base in (s3)
+	li		a1, 1				# rows-count(a1) = 1 for an array
+	mv		a2, s2				# cols-count(a2) = nodes-count(s1)
+	jal		matrixAlloc			# create-array, (a0) = base of new array
+	mv		s3, a0				# base of shortest-path-tree-set(s3) = base of new array(a0)
 	
+	# Initialization distances-array and save its base in (s4)
+	li		a1, 1				# rows-count(a1) = 1 for an array
+	mv		a2, s2				# cols-count(a2) = nodes-count(s1)
+	jal		matrixAlloc			# create-array, (a0) = base of new array
+	mv		s4, a0				# base of distances-array(s4) = base of new array(a0)
 	
-	li		a1, 1
-	li		a2, 3
-	mv		s1, a1
-	mv		s2, a2
-	jal		matrixAlloc
-	mv		s0, a0
-	li		a0, -1
-	jal		matrixSetAll
-	li		a0, 0
-	li		a1, 2
-	li		a2, 0
-	jal		setItem
+	# loop for set all distances = MAX-VALUE, sptSet values = false (0)
+	li		t0, 0				# loop counter
+	li		t4, -1				# representation of MAX-VALUE, in unsigned value -1 is Max.
+	dijkstra_loop1:
+		bge		t0, s2, dijkstra_end1	# checking loop-countr(t0) is less than nodes-count(s2)
+		
+		# calculating bytes-offset 
+		slli	t1, t0, 2				# bytes-offset(t1) = loop-counter'items-offset'(t0) * 4(word-size)
+		
+		# 'byte-position in shortest-path-tree-set'(t2) = base of shortest-path-tree-set(s3) + bytes-offset(t1)
+		add		t2, s3, t1
+		sw		zero, 0(t2)				# store '0'(zero) in 'current position of shortest-path-tree-set'(t2)
+		
+		# if loop-countr(t0) is equal source(s1) dont set distance = MAX-VALUE, distances[source] = 0
+		beq		s1, t0, dijkstra_continue1
+		
+		# 'byte-position in distances'(t2) = 'base of distances'(s4) + bytes-offset(t1)
+		add 	t2, s4, t1				
+		sw		t4, 0(t2)				# store MAX-VALUE(t4) in 'current position of distances(t2)'
+	dijkstra_continue1:
+		addi	t0, t0, 1				# increase loop-counter(t0), loop-counter(t0) += 1
+		jal		dijkstra_loop1			# jump to loop
+	dijkstra_end1:
+	
+	mv		s0, s3
+	li		s1, 1
+	jal		printMatrix
+	
+	la		a0, str_line
+	jal		printStr
+	
+	mv		s0, s4
 	jal		printMatrix
 	
 	lw		ra, 0(sp)
-	lw		s0, 4(sp)
-	lw		s1, 8(sp)
-	lw		s2, 12(sp)
+	addi	sp, sp, 4
+	
+	jalr	zero, 0(ra)
+	
 	
 # base of shortest-path-tree-set in (s3)
 # base of distances-array in (s4)
