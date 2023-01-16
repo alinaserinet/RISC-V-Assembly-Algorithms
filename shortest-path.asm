@@ -1,11 +1,13 @@
 .data
 matrix:		.word 0, 1, 2, 3
+array1:		.word 0, -1, -1, -1
+array2:		.word 0, 0, 0, 0
 
 # strings
 str_outOfBound:			.asciz	"index out of bound!"
 str_TAB:				.asciz	"\t"
 str_NL:					.asciz	"\n"
-str_line:				.asciz	"----------------------------------\n"
+str_line:				.asciz	"\n----------------------------------\n"
 str_enterNodesCount:	.asciz	"Enter nodes count: "
 str_enterEdge:			.asciz	"\nedge "
 str_between:			.asciz	" between "
@@ -26,16 +28,16 @@ mv		s1, a0		# copy recived-value into (s1) for sending to the readGraph
 
 # reading graph
 jal		readGraph 	# return: (a0) recived-matrix of graph
-
+mv		s3, a0
 # Initialization arguments for 
 mv		s0, a0
 mv		s2, s1
 jal		printMatrix
 
-
-li		s2, 4
-la		s0, matrix
 li		s5, 0
+jal		dijkstra
+
+mv		s0, a0
 jal		printDistances
 
 jal	exit
@@ -44,6 +46,8 @@ jal	exit
 # base of graph-matrix in (s3)
 # vertex-count(nodes-count) in (s2)
 # source in (s5)
+# ---------------------------------
+# distance-array-base in (a0)
 dijkstra:
 	addi	sp, sp, -36
 	sw		ra, 0(sp)
@@ -72,7 +76,7 @@ dijkstra:
 	
 	# loop for set all distances = MAX-VALUE, sptSet values = false (0)
 	li		t0, 0				# loop counter
-	li		t4, -1				# representation of MAX-VALUE, in unsigned value -1 is Max.
+	li		t4, 1000				# representation of MAX-VALUE, in unsigned value -1 is Max.
 	dijkstra_loop1:
 		bge		t0, s2, dijkstra_end1	# checking loop-countr(t0) is less than nodes-count(s2)
 		
@@ -83,8 +87,8 @@ dijkstra:
 		add		t2, s6, t1
 		sw		zero, 0(t2)				# store '0'(zero) in 'current position of shortest-path-tree-set'(t2)
 		
-		# if loop-countr(t0) is equal source(s1) dont set distance = MAX-VALUE, distances[source] = 0
-		beq		s1, t0, dijkstra_continue1
+		# if loop-countr(t0) is equal source(s5) dont set distance = MAX-VALUE, distances[source] = 0
+		beq		s5, t0, dijkstra_continue1
 		
 		# 'byte-position in distances'(t2) = 'base of distances'(s7) + bytes-offset(t1)
 		add 	t2, s7, t1				
@@ -93,80 +97,96 @@ dijkstra:
 		addi	t0, t0, 1				# increase loop-counter(t0), loop-counter(t0) += 1
 		jal		dijkstra_loop1			# jump to loop
 	dijkstra_end1:
+	mv	s0, s6
+	li	s1, 1
+	jal	printMatrix
 	
+	mv	s0, s7
+	jal	printMatrix
+	la	a0, str_line
+	jal	printStr
+	
+	
+	# counter = 0
 	li		s8, 1
 	dijkstra_loop2:
+		# check counter(s8) < nodes-count(s2), else break
 		bge		s8, s2, dijkstra_end2
 		
-		jal		minDistance				# return: min-index(a0)
-		mv		s10, a0					# copy min-index into (s10), for using in loop3
-		mv		s0,	s6
-		li		s1,	1
+		jal		minDistance				# s6:sptSet-base, s7: distance-base, s2: nodes-count, return min-index in (a0)
 		
+		mv		s0, s6
+		li		s1, 1
 		mv		a1, a0
 		li		a0, 0
 		li		a2, 1
 		jal		setItem
+				
+		
 		li		s9, 0	# nodes-counter
-		dijkstra_loop3:
-			bge		s9, s2, dijkstra_end3
-			
-			# load sptSet[0][nodes-counter(s9)] // sptSet-base in (s6)
-			mv		s0, s6		# copy sptSet-base(s6) in s0, for sending into getItem
-			li		s1, 1		# rows-count(s1) = 1 for an array
-			# cols-count is in (s2)
-			li		a0, 0		# row-index(a0) = 0 for an array
-			mv		a1, s9		# col-index(a1) = nodes-counter(s9)
-			jal		getItem		# getItem from sptSet: return value in (a0)
-			
-			# check sptSet[0][nodes-counter(s9)] == 0, else continue loop3
-			bne		a0, zero, dijkstra_continue3 # {1}
-			
-			# load graph[min-index][nodes-counter(s9)] // graph-base in (s3)
-			mv		s0, s3		# copy graph-base(s3) into (s0) for sending to getItem
-			mv		s1, s2		# rows-count(s1) = cols-count(s2) for graph-matrix.
-			# cols-count is in (s2)
-			mv		a0, s10		# row-index(a0) = min-index(s10)
-			mv		a1, s9		# col-index(a1) = nodes-counter(s9)
-			jal		getItem		# get from graph: return value in (a0)
-			
-			# checking graph[min-index][nodes-counter(s9)] != 0, else continue loop3
-			beq		a0, zero, dijkstra_continue3	# {2}
-			mv		s11, a0
-			
-			# load distance[0][min-index]	// distances-base in (s7)
-			mv		s0, s7			# copy distance-base(s7) into (s0) for sending to getItem
-			li		s1, 1			# rows-count(s1) = 1 for an array
-			# cols-count is in (s2)
-			li		a0, 0			# row-index(a0) = 0 for an array
-			mv		a1, s10			# col-index(a1) = min-index(a10)
-			jal		getItem
-			
-			# checking distance[0][min-index] != MAX-VALUE(-1), else continue loop3
-			addi	t0, a0, 1
-			blt		t0, zero, dijkstra_continue3 # {3}
-			
-			# sum distance[0][min-index] + graph[min-index][nodes-counter(s9)]
-			add		s11, s11, a0
-			
-			# load distance[0][nodes-counter(s9)] // distances-base in (s7)
-			mv		s0, s7
-			li		s1, 1
-			# cols-count is in (s2)
-			li		a0, 0
-			mv		a1, s9
-			jal		getItem
-			
-			bge		s11, a0, dijkstra_continue3
-			# set distance[nodes-counter(s9)] = distance[min-index] + graph[min-index][nodes-counter(s9)]
-			li		a0, 0
-			mv		a1, s9
-			mv		a2, s11
-			jal		setItem
-			dijkstra_continue3:
-			addi	s9, s9, 1
-			jal		dijkstra_loop3
-			dijkstra_end3:
+        dijkstra_loop3:
+        	bge		s9, s2, dijkstra_end3
+
+        	# load sptSet[0][nodes-counter(s9)] // sptSet-base in (s6)
+        	mv		s0, s6		# copy sptSet-base(s6) in s0, for sending into getItem
+        	li		s1, 1		# rows-count(s1) = 1 for an array
+        	# cols-count is in (s2)
+       		li		a0, 0		# row-index(a0) = 0 for an array
+        	mv		a1, s9		# col-index(a1) = nodes-counter(s9)
+        	jal		getItem		# getItem from sptSet: return value in (a0)
+
+        	# check sptSet[0][nodes-counter(s9)] == 0, else continue loop3
+        	bne		a0, zero, dijkstra_continue3 # {1}
+
+        	# load graph[min-index][nodes-counter(s9)] // graph-base in (s3)
+        	mv		s0, s3		# copy graph-base(s3) into (s0) for sending to getItem
+        	mv		s1, s2		# rows-count(s1) = cols-count(s2) for graph-matrix.
+        	# cols-count is in (s2)
+        	mv		a0, s10		# row-index(a0) = min-index(s10)
+        	mv		a1, s9		# col-index(a1) = nodes-counter(s9)
+        	jal		getItem		# get from graph: return value in (a0)
+
+        	# checking graph[min-index][nodes-counter(s9)] != 0, else continue loop3
+        	beq		a0, zero, dijkstra_continue3	# {2}
+        	mv		s11, a0
+
+        	# load distance[0][min-index]	// distances-base in (s7)
+        	mv		s0, s7			# copy distance-base(s7) into (s0) for sending to getItem
+        	li		s1, 1			# rows-count(s1) = 1 for an array
+        	# cols-count is in (s2)
+        	li		a0, 0			# row-index(a0) = 0 for an array
+        	mv		a1, s10			# col-index(a1) = min-index(a10)
+        	jal		getItem
+        	jal			printInt
+        	# checking distance[0][min-index] != MAX-VALUE(-1), else continue loop3
+        	addi		t0, a0, -1000
+        	beq			t0, zero, dijkstra_continue3 # {3}
+			add			s11, s11, a0
+        	# sum distance[0][min-index] + graph[min-index][nodes-counter(s9)]
+        	jal			printInt
+        
+        	# load distance[0][nodes-counter(s9)] // distances-base in (s7)
+        	mv		s0, s7
+        	li		s1, 1
+        	# cols-count is in (s2)
+        	li		a0, 0
+        	mv		a1, s9
+        	jal		getItem
+
+        	bge		s11, a0, dijkstra_continue3
+        	# set distance[nodes-counter(s9)] = distance[min-index] + graph[min-index][nodes-counter(s9)]
+        	
+        	mv		s0, s7
+        	li		s1, 1
+        	li		a0, 0
+        	mv		a1, s9
+        	mv		a2, s11
+        	jal		setItem
+        dijkstra_continue3:
+        addi	s9, s9, 1
+        jal		dijkstra_loop3
+        dijkstra_end3:
+		
 		addi	s8, s8, 1
 		jal		dijkstra_loop2
 	dijkstra_end2:
@@ -194,7 +214,7 @@ dijkstra:
 # return min-index in (a0)
 minDistance:
 	# store return-address in stack
-	addi	sp, sp, -16
+	addi	sp, sp, -24
 	sw		ra, 0(sp)
 	
 	# store save-register (s0) in the stacke, for using (s0) to sent it to getItem as base-address
@@ -205,6 +225,10 @@ minDistance:
 	
 	# store saved-registers in stack
 	sw		s5, 12(sp)
+	
+	sw		s8, 16(sp)
+	
+	sw		s9, 20(sp)
 	
 	# values Initialization
 	li		s1, 1	     			# rows-count(s1) is equal '1' for an array to send to 'getItem'
@@ -245,6 +269,7 @@ minDistance:
 		
 	minDistance_continue:
 		addi	s5, s5, 1			# increasing vertex-counter(s5), vertex-counter(s5) += 1
+		jal		minDistance_loop
 	minDistance_end:
 	
 	mv		a0, s9					# (a0) = min-index(s9), for return it
@@ -256,20 +281,11 @@ minDistance:
 	lw		s0, 4(sp)
 	lw		s1, 8(sp)
 	lw		s5, 12(sp)
-	lw		s6, 16(sp)
-	lw		s7, 20(sp)
-	
-	# restore return-address from stack
-	lw		ra, 0(sp)
-	
-	# restore saved-register: loading them from the stack.
-	lw		s0, 4(sp)
-	lw		s1, 8(sp)
-	sw		s5, 12(sp)
-	
-	
+	lw		s8, 16(sp)
+	lw		s9, 20(sp)
+
 	# restore stack-pointer to pervious position.
-	addi	sp, sp, 20
+	addi	sp, sp, 24
 	jalr	zero, 0(ra)
 	
 	
