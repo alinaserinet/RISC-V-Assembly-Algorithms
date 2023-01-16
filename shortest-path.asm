@@ -97,15 +97,6 @@ dijkstra:
 		addi	t0, t0, 1				# increase loop-counter(t0), loop-counter(t0) += 1
 		jal		dijkstra_loop1			# jump to loop
 	dijkstra_end1:
-	mv	s0, s6
-	li	s1, 1
-	jal	printMatrix
-	
-	mv	s0, s7
-	jal	printMatrix
-	la	a0, str_line
-	jal	printStr
-	
 	
 	# counter = 0
 	li		s8, 1
@@ -157,7 +148,7 @@ dijkstra:
         	li		a0, 0			# row-index(a0) = 0 for an array
         	mv		a1, s10			# col-index(a1) = min-index(a10)
         	jal		getItem
-        	jal			printInt
+
         	# checking distance[0][min-index] != MAX-VALUE(-1), else continue loop3
         	addi		t0, a0, -1000
         	beq			t0, zero, dijkstra_continue3 # {3}
