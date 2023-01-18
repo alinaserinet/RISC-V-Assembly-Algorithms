@@ -11,7 +11,7 @@ str_between:			.asciz	" between "
 str_colon:				.asciz	": "
 str_distances:			.asciz  "distances:\n"
 str_to:					.asciz	" to "
-str_enterSrc:			.asciz  "Enter Src:"
+str_enterSrc:			.asciz  "Enter source node:"
 
 # define MAX_VALUE
 .eqv	MAX		0xfffffff
