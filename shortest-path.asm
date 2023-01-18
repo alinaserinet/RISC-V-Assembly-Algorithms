@@ -53,6 +53,7 @@ jal	exit
 # ---------------------------------
 # distance-array-base in (a0)
 dijkstra:
+	bge		s5, s2, outOfBound
 	addi	sp, sp, -36
 	sw		ra, 0(sp)
 	
@@ -63,7 +64,7 @@ dijkstra:
 	sw		s7, 16(sp)
 	sw		s8, 20(sp)
 	sw		s9, 24(sp)
-	sw		s10, 28(sp)
+	sw		s4, 28(sp)
 	sw		s11, 32(sp)
 	
 	# Initialization shortest-path-tree-set and save its base in (s6)
@@ -109,7 +110,7 @@ dijkstra:
 		bge		s8, s2, dijkstra_end2
 		
 		jal		minDistance				# s6:sptSet-base, s7: distance-base, s2: nodes-count, return min-index in (a0)
-		mv		s10, a0
+		mv		s4, a0
 		mv		s0, s6
 		li		s1, 1
 		mv		a1, a0
@@ -138,7 +139,7 @@ dijkstra:
         	mv		s0, s3		# copy graph-base(s3) into (s0) for sending to getItem
         	mv		s1, s2		# rows-count(s1) = cols-count(s2) for graph-matrix.
         	# cols-count is in (s2)
-        	mv		a0, s10		# row-index(a0) = min-index(s10)
+        	mv		a0, s4		# row-index(a0) = min-index(s4)
         	mv		a1, s9		# col-index(a1) = nodes-counter(s9)
         	jal		getItem		# get from graph: return value in (a0)
 
@@ -151,7 +152,7 @@ dijkstra:
         	li		s1, 1			# rows-count(s1) = 1 for an array
         	# cols-count is in (s2)
         	li		a0, 0			# row-index(a0) = 0 for an array
-        	mv		a1, s10			# col-index(a1) = min-index(a10)
+        	mv		a1, s4			# col-index(a1) = min-index(s4)
         	jal		getItem
 
         	# checking distance[0][min-index] != MAX-VALUE(1000), else continue loop3
@@ -194,7 +195,7 @@ dijkstra:
 	lw		s7, 16(sp)
 	lw		s8, 20(sp)
 	lw		s9, 24(sp)
-	lw		s10, 28(sp)
+	lw		s4, 28(sp)
 	lw		s11, 32(sp)
 	
 	lw		ra, 0(sp)
