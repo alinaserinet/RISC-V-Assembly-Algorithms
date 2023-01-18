@@ -14,6 +14,7 @@ str_between:			.asciz	" between "
 str_colon:				.asciz	": "
 str_distances:			.asciz  "distances:\n"
 str_to:					.asciz	" to "
+str_enterSrc:			.asciz  "Enter Src:"
 
 
 .text
@@ -34,7 +35,10 @@ mv		s0, a0
 mv		s2, s1
 jal		printMatrix
 
-li		s5, 0
+la		a0, str_enterSrc
+jal		printStr
+jal		readInt
+mv		s5, a0
 jal		dijkstra
 
 mv		s0, a0
@@ -76,7 +80,7 @@ dijkstra:
 	
 	# loop for set all distances = MAX-VALUE, sptSet values = false (0)
 	li		t0, 0				# loop counter
-	li		t4, 1000				# representation of MAX-VALUE, in unsigned value -1 is Max.
+	li		t4, 1000				# representation of MAX-VALUE, MAX-VALUE = 1000
 	dijkstra_loop1:
 		bge		t0, s2, dijkstra_end1	# checking loop-countr(t0) is less than nodes-count(s2)
 		
@@ -105,7 +109,7 @@ dijkstra:
 		bge		s8, s2, dijkstra_end2
 		
 		jal		minDistance				# s6:sptSet-base, s7: distance-base, s2: nodes-count, return min-index in (a0)
-		
+		mv		s10, a0
 		mv		s0, s6
 		li		s1, 1
 		mv		a1, a0
@@ -116,6 +120,7 @@ dijkstra:
 		
 		li		s9, 0	# nodes-counter
         dijkstra_loop3:
+        	# checking nodes-counter(s9) < nodes-count(s2), else break
         	bge		s9, s2, dijkstra_end3
 
         	# load sptSet[0][nodes-counter(s9)] // sptSet-base in (s6)
@@ -149,12 +154,11 @@ dijkstra:
         	mv		a1, s10			# col-index(a1) = min-index(a10)
         	jal		getItem
 
-        	# checking distance[0][min-index] != MAX-VALUE(-1), else continue loop3
+        	# checking distance[0][min-index] != MAX-VALUE(1000), else continue loop3
         	addi		t0, a0, -1000
         	beq			t0, zero, dijkstra_continue3 # {3}
 			add			s11, s11, a0
         	# sum distance[0][min-index] + graph[min-index][nodes-counter(s9)]
-        	jal			printInt
         
         	# load distance[0][nodes-counter(s9)] // distances-base in (s7)
         	mv		s0, s7
@@ -223,7 +227,7 @@ minDistance:
 	
 	# values Initialization
 	li		s1, 1	     			# rows-count(s1) is equal '1' for an array to send to 'getItem'
-	li		s8, -1					# Initialize Max-value = (-1) => in unsigned it's Max-value
+	li		s8, 1000					# Initialize Max-value = (-1) => in unsigned it's Max-value
 	li		s9, -1					# Initialize min-index
 	li		s5, 0					# Initialize vertex-counter (v = 0)
 	
@@ -253,7 +257,7 @@ minDistance:
 		jal		getItem				# getting distances[0][vertex-counter(a1)]: return value in (a0)
 		
 		# checking distances[0][vertex-counter(a1)] <= Max-value(s8), else continue
-		bltu	s8, a0, minDistance_continue
+		blt 	s8, a0, minDistance_continue
 		
 		mv		s8, a0				# Max-value(s5) = distances[0][vertex-counter(s5)]
 		mv		s9, s5				# min-index(s9) = vertex-counter(s5)
