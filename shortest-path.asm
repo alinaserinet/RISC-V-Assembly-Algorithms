@@ -1,7 +1,4 @@
 .data
-matrix:		.word 0, 1, 2, 3
-array1:		.word 0, -1, -1, -1
-array2:		.word 0, 0, 0, 0
 
 # strings
 str_outOfBound:			.asciz	"index out of bound!"
@@ -16,10 +13,14 @@ str_distances:			.asciz  "distances:\n"
 str_to:					.asciz	" to "
 str_enterSrc:			.asciz  "Enter Src:"
 
+# define MAX_VALUE
+.eqv	MAX		0xfffffff
 
 .text
+# load MAX-VALUE in (s10)
+li		s10, MAX
 
-# print message for getting nodes-count
+# qprint message for getting nodes-count
 la		a0, str_enterNodesCount
 jal		printStr
 
@@ -81,7 +82,6 @@ dijkstra:
 	
 	# loop for set all distances = MAX-VALUE, sptSet values = false (0)
 	li		t0, 0				# loop counter
-	li		t4, 1000				# representation of MAX-VALUE, MAX-VALUE = 1000
 	dijkstra_loop1:
 		bge		t0, s2, dijkstra_end1	# checking loop-countr(t0) is less than nodes-count(s2)
 		
@@ -97,7 +97,7 @@ dijkstra:
 		
 		# 'byte-position in distances'(t2) = 'base of distances'(s7) + bytes-offset(t1)
 		add 	t2, s7, t1				
-		sw		t4, 0(t2)				# store MAX-VALUE(t4) for 'current position of distances(t2)'
+		sw		s10, 0(t2)				# store MAX-VALUE(s10) for 'current position of distances(t2)'
 	dijkstra_continue1:
 		addi	t0, t0, 1				# increase loop-counter(t0), loop-counter(t0) += 1
 		jal		dijkstra_loop1			# jump to loop
@@ -155,9 +155,8 @@ dijkstra:
         	mv		a1, s4			# col-index(a1) = min-index(s4)
         	jal		getItem
 
-        	# checking distance[0][min-index] != MAX-VALUE(1000), else continue loop3
-        	addi		t0, a0, -1000
-        	beq			t0, zero, dijkstra_continue3 # {3}
+        	# checking distance[0][min-index] != MAX-VALUE(s10), else continue loop3
+        	beq			a0, s10, dijkstra_continue3 # {3}
 			add			s11, s11, a0
         	# sum distance[0][min-index] + graph[min-index][nodes-counter(s9)]
         
