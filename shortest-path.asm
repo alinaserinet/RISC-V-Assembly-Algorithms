@@ -45,7 +45,7 @@ jal		dijkstra
 mv		s0, a0
 jal		printDistances
 
-jal	exit
+jal		exit
 
 
 # base of graph-matrix in (s3)
@@ -629,6 +629,10 @@ printStr:
 outOfBound:
 	la	a0, str_outOfBound 	# load 'out-of-bound-message' to (a0)
 	jal	printStr		# print 'out-of-bound-message'
-	jal	exit			# jump to exit
+	li	a0, 1			# exit code = 1
+	li	a7, 93			# syscall for exit by code in (a0)
+	ecall				# exit by code 1
 
 exit:
+	li	a7, 10			# syscall for exit by code 0
+	ecall				# exit by code 0
