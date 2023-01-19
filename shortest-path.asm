@@ -54,19 +54,19 @@ jal	exit
 # ---------------------------------
 # distance-array-base in (a0)
 dijkstra:
-	bge		s5, s2, outOfBound
-	addi	sp, sp, -36
-	sw		ra, 0(sp)
+	bge		s5, s2, outOfBound	# checking source(s5) is less than nodes-count(s2), else break
+	addi	sp, sp, -36			# reducing stack-pointer for saving registers
+	sw		ra, 0(sp)			# saving return-address
 	
 	# store saved-registers
-	sw		s0, 4(sp)
-	sw		s1, 8(sp)
-	sw		s6, 12(sp)
-	sw		s7, 16(sp)
-	sw		s8, 20(sp)
-	sw		s9, 24(sp)
-	sw		s4, 28(sp)
-	sw		s11, 32(sp)
+	sw		s0, 4(sp)			# (s0) for base of array for calling getItem
+	sw		s1, 8(sp)			# (s1) for rows-count
+	sw		s6, 12(sp)			# (s6) for base of sptSet
+	sw		s7, 16(sp)			# (s7) for base of distances
+	sw		s8, 20(sp)			# (s8) for loop2 counter
+	sw		s9, 24(sp)			# (s9) for loop3 counter
+	sw		s4, 28(sp)			# (s4) for min-index
+	sw		s11, 32(sp)			# (s11) for graph[min-index][nodes-counter(s9)] + distance[0][min-index]
 	
 	# Initialization shortest-path-tree-set and save its base in (s6)
 	li		a1, 1				# rows-count(a1) = 1 for an array
@@ -110,13 +110,16 @@ dijkstra:
 		bge		s8, s2, dijkstra_end2
 		
 		jal		minDistance				# s6:sptSet-base, s7: distance-base, s2: nodes-count, return min-index in (a0)
-		mv		s4, a0
-		mv		s0, s6
-		li		s1, 1
-		mv		a1, a0
-		li		a0, 0
-		li		a2, 1
-		jal		setItem
+		mv		s4, a0					# (s4) = min-index 'returned from minDistance'
+		
+		# set sptSet[0][min-index] = 1
+		# Initialization data for setting sptSet[0][min-index] by setItem
+		mv		s0, s6					# (s0) = base of sptSet(s6)
+		li		s1, 1					# rows-count(s1) = 1 for an array
+		li		a0, 0					# row-index(a0) = 0 for an array
+		mv		a1, s4					# col-index(a1) = min-index(s4)
+		li		a2, 1					# set 1 for sptSet[0][min-index]
+		jal		setItem					# setting
 				
 		
 		li		s9, 0	# nodes-counter
@@ -125,7 +128,7 @@ dijkstra:
         	bge		s9, s2, dijkstra_end3
 
         	# load sptSet[0][nodes-counter(s9)] // sptSet-base in (s6)
-        	mv		s0, s6		# copy sptSet-base(s6) in s0, for sending into getItem
+        	mv		s0, s6		# copy sptSet-base(s6) in (s0), for sending into getItem
         	li		s1, 1		# rows-count(s1) = 1 for an array
         	# cols-count is in (s2)
        		li		a0, 0		# row-index(a0) = 0 for an array
@@ -153,7 +156,7 @@ dijkstra:
         	# cols-count is in (s2)
         	li		a0, 0			# row-index(a0) = 0 for an array
         	mv		a1, s4			# col-index(a1) = min-index(s4)
-        	jal		getItem
+        	jal		getItem			# getting
 
         	# checking distance[0][min-index] != MAX-VALUE(s10), else continue loop3
         	beq			a0, s10, dijkstra_continue3 # {3}
@@ -167,11 +170,11 @@ dijkstra:
         	li		a0, 0
         	mv		a1, s9
         	jal		getItem
-
+			
         	bge		s11, a0, dijkstra_continue3
-        	# set distance[nodes-counter(s9)] = distance[min-index] + graph[min-index][nodes-counter(s9)]
         	
-        	mv		s0, s7
+        	# update distance[nodes-counter(s9)] = distance[min-index] + graph[min-index][nodes-counter(s9)]
+        	mv		s0, s7	
         	li		s1, 1
         	li		a0, 0
         	mv		a1, s9
@@ -188,18 +191,18 @@ dijkstra:
 	
 	mv		a0, s7			# copy distance-array(s7) base into (a0)
 	# load saved-registers
-	lw		s0, 4(sp)		
-	lw		s1, 8(sp)
-	lw		s6, 12(sp)
-	lw		s7, 16(sp)
-	lw		s8, 20(sp)
-	lw		s9, 24(sp)
-	lw		s4, 28(sp)
-	lw		s11, 32(sp)
+	lw		s0, 4(sp)		# (s0) for base of array for calling getItem
+	lw		s1, 8(sp)		# (s1) for rows-count
+	lw		s6, 12(sp)		# (s6) for base of sptSet
+	lw		s7, 16(sp)		# (s7) for base of distances
+	lw		s8, 20(sp)		# (s8) for loop2 counter
+	lw		s9, 24(sp)		# (s9) for loop3 counter
+	lw		s4, 28(sp)		# (s4) for min-index
+	lw		s11, 32(sp)		# (s11) for graph[min-index][nodes-counter(s9)] + distance[0][min-index]
 	
-	lw		ra, 0(sp)
-	addi	sp, sp, 36
-	jalr	zero, 0(ra)
+	lw		ra, 0(sp)		# restore return-address
+	addi	sp, sp, 36		# increasing stack-pointer
+	jalr	zero, 0(ra)		# return, base of distances in (a0)
 	
 	
 # base of shortest-path-tree-set in (s6)
