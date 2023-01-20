@@ -2,637 +2,750 @@
 
 # strings
 str_outOfBound:			.asciz	"index out of bound!"
-str_TAB:				.asciz	"\t"
-str_NL:					.asciz	"\n"
-str_line:				.asciz	"\n----------------------------------\n"
-str_enterNodesCount:	.asciz	"Enter nodes count: "
+str_TAB:			.asciz	"\t"
+str_NL:				.asciz	"\n"
+str_line:			.asciz	"\n----------------------------------\n"
+str_enterNodesCount:		.asciz	"Enter nodes count: "
 str_enterEdge:			.asciz	"\nedge "
 str_between:			.asciz	" between "
-str_colon:				.asciz	": "
+str_colon:			.asciz	": "
 str_distances:			.asciz  "distances:\n"
-str_to:					.asciz	" to "
-str_enterSrc:			.asciz  "Enter source node:"
+str_to:				.asciz	" to "
+str_enterSrc:			.asciz  "Enter source node: "
 
 # define MAX_VALUE
-.eqv	MAX		0xfffffff
+.eqv	MAX	0xfffffff
 
 .text
-# load MAX-VALUE in (s10)
-li		s10, MAX
-
-# qprint message for getting nodes-count
-la		a0, str_enterNodesCount
-jal		printStr
-
-# read nodes-count: value in (a0)
-jal		readInt
-mv		s1, a0		# copy recived-value into (s1) for sending to the readGraph
-
-# reading graph
-jal		readGraph 	# return: (a0) recived-matrix of graph
-mv		s3, a0
-# Initialization arguments for 
-mv		s0, a0
-mv		s2, s1
-jal		printMatrix
-
-la		a0, str_enterSrc
-jal		printStr
-jal		readInt
-mv		s5, a0
-jal		dijkstra
-
-mv		s0, a0
-jal		printDistances
-
-jal		exit
+li	s10, MAX			# loading MAX-VALUE in (s10)
 
 
-# base of graph-matrix in (s3)
-# vertex-count(nodes-count) in (s2)
-# source in (s5)
-# ---------------------------------
-# distance-array-base in (a0)
+la	a0, str_enterNodesCount		# loading "Enter nodes count: " string for printing
+jal	printStr			# printing "Enter nodes count: " string
+
+
+jal	readInt				# reading nodes-count, int-number will be in (a0)
+
+mv	s1, a0				# 'nodes-count'(s1) = 'returned number from readInt'(a0)
+					
+					# 'readGraph nodes-count argumnet'(a0) = 'returned number from readInt'(a0)
+jal	readGraph 			# reading graph from console, 'base of adjacency matrix' will be in (a0)
+
+mv	s0, a0				# 'base of adjacency matrix'(s0) = 'returned number from readInt'(a0)
+
+					# 'printMatrix base argumnet'(a0) = 'base of adjacency matrix'(a0)
+mv	a1, s1				# 'printMatrix rows argumnet'(a1) = 'nodes-count'(s1)
+mv	a2, s1				# 'printMatrix cols argumnet'(a2) = 'nodes-count'(s1)
+
+jal	printMatrix			# printing adjacency matrix
+
+la	a0, str_enterSrc		# loading "Enter source node: " string for printing
+jal	printStr			# printing "Enter source node: " string
+
+jal	readInt				# reading source-node, int-number will be in (a0)
+
+mv	s2, a0				# 'source-node'(s2) = 'returned number from readInt'(a0)
+
+mv	a0, s0				# 'dijkstra adjacency-matrix-base argument'(a0) = 'base of adjacency matrix'(s0)
+mv	a1, s1				# 'dijkstra nodes-count argument'(a1) = 'nodes-count'(s1)
+mv	a2, s2				# 'dijkstra source-node argument'(a2) = 'source-node'(s2)
+jal	dijkstra			# run dijkstra algorithm, 'distance-array-base' will be in (a0)
+
+mv	a1, s1				# 'printDistances nodes-count argument'(a1) = 'nodes-count'(s1)
+mv	a5, s2				# 'printDistances source-node argument'(a5) = 'source-node'(s2)
+jal	printDistances			# printing distances-array
+
+jal	exit				# exit by code 0
+
+
+# ----------------------------------------------------
+# Dijkstra algorithm for finding shortest paths
+# ----------------------------------------------------
+# ------------------- parameters ---------------------	
+# 'adjacency-matrix-base' in          (a0)
+# 'nodes-count' in                    (a1)
+# 'source node' in		      (a2)
+# ----------------------------------------------------
+# return: 'distance-array-base' in    (a0)
+# ----------------------------------------------------
 dijkstra:
-	bge		s5, s2, outOfBound	# checking source(s5) is less than nodes-count(s2), else break
-	addi	sp, sp, -36			# reducing stack-pointer for saving registers
-	sw		ra, 0(sp)			# saving return-address
+	bge	a2, a1, outOfBound	# checking source(a2) is less than nodes-count(a1), else break
+	addi	sp, sp, -36		# reducing stack-pointer
+	sw	ra, 0(sp)		# saving return-address
 	
-	# store saved-registers
-	sw		s0, 4(sp)			# (s0) for base of array for calling getItem
-	sw		s1, 8(sp)			# (s1) for rows-count
-	sw		s6, 12(sp)			# (s6) for base of sptSet
-	sw		s7, 16(sp)			# (s7) for base of distances
-	sw		s8, 20(sp)			# (s8) for loop2 counter
-	sw		s9, 24(sp)			# (s9) for loop3 counter
-	sw		s4, 28(sp)			# (s4) for min-index
-	sw		s11, 32(sp)			# (s11) for graph[min-index][nodes-counter(s9)] + distance[0][min-index]
+	sw	s0, 4(sp)		# (s0) for keeping 'adjacency-matrix-base'
+	sw	s2, 8(sp)		# (s2) for keeping 'nodes-count'
+	sw	s3, 12(sp)		# (s3) for keeping 'loop-counter'
+	sw	s4, 16(sp)		# (s4) for keeping 'nodes-counter'
+	sw	s5, 20(sp)		# (s5) for keeping 'source-node' and 'min-index'
+	sw	s6, 24(sp)		# (s6) for keeping 'base of shortest-path-tree-set'
+	sw	s7, 28(sp)		# (s7) for keeping 'base of distances'
+	sw	s8, 32(sp)		# (s8) for keeping a temp var in loop3
+	
+	mv	s0, a0			# 'adjacency-matrix-base'(s0) = 'adjacency-matrix-base parameter'(a0)
+	mv	s2, a1			# 'nodes-count'(s2) = 'nodes-count parameter'(a1)
+	mv	s5, a2			# 'source-node'(s5) = 'source-node parameter'(a2)
 	
 	# Initialization shortest-path-tree-set and save its base in (s6)
-	li		a1, 1				# rows-count(a1) = 1 for an array
-	mv		a2, s2				# cols-count(a2) = nodes-count(s2)
-	jal		matrixAlloc			# create-array, (a0) = base of new array
-	mv		s6, a0				# base of shortest-path-tree-set(s6) = base of new array(a0)
+	li	a1, 1			# 'matrixAlloc rows-count'(a1) = 1 for all array
+	mv	a2, s2			# 'matrixAlloc rows-count'(a2) = 'nodes-count'(s2)
+	jal	matrixAlloc		# allocating new array for shortest-path-tree-set, base will be in (a0)
+	mv	s6, a0			# 'base of shortest-path-tree-set'(s6) = 'returned base from matrixAlloc'(a0)
 	
 	# Initialization distances-array and save its base in (s7)
-	li		a1, 1				# rows-count(a1) = 1 for an array
-	mv		a2, s2				# cols-count(a2) = nodes-count(s2)
-	jal		matrixAlloc			# create-array, (a0) = base of new array
-	mv		s7, a0				# base of distances-array(s7) = base of new array(a0)
+	li	a1, 1			# 'matrixAlloc rows-count'(a1) = 1 for all array
+	mv	a2, s2			# 'matrixAlloc rows-count'(a2) = 'nodes-count'(s2)
+	jal	matrixAlloc		# allocating new array for distances, base will be in (a0)
+	mv	s7, a0			# 'base of distances'(s7) = 'returned base from matrixAlloc'(a0)
 	
-	# loop for set all distances = MAX-VALUE, sptSet values = false (0)
-	li		t0, 0				# loop counter
+	li	s4, 0			# initialzation 'nodes-counter'(s4) = 0
 	dijkstra_loop1:
-		bge		t0, s2, dijkstra_end1	# checking loop-countr(t0) is less than nodes-count(s2)
+		# checking 'nodes-counter'(s4) is less than 'nodes-count'(s2), else break.
+		bge	s4, s2, dijkstra_end1
 		
-		# calculating bytes-offset 
-		slli	t1, t0, 2				# bytes-offset(t1) = loop-counter'items-offset'(t0) * 4(word-size)
+		slli	t0, s4, 2			# 'bytes-offset'(t0) = 'nodes-counter'(items-offset)(s4) * 'word-size'(4)
 		
-		# 'byte-position in shortest-path-tree-set'(t2) = base of shortest-path-tree-set(s6) + bytes-offset(t1)
-		add		t2, s6, t1
-		sw		zero, 0(t2)				# store '0'(zero) in 'current position of shortest-path-tree-set'(t2)
+		add	t1, s6, t0			# 'byte-position in shortest-path-tree-set'(t1) = 'base of shortest-path-tree-set'(s6) + 'bytes-offset'(t0)
+		sw	zero, 0(t1)			# storing 'zero'(0) in 'current position of shortest-path-tree-set'(t1)
 		
-		# if loop-countr(t0) is equal source(s5) dont set distance = MAX-VALUE, distances[source] = 0
-		beq		s5, t0, dijkstra_continue1
+		# checking 'nodes-counter'(s4) == 'source-node'(s5) countinue, the distance for source-node is 'zero'(0).
+		beq	s4, s5, dijkstra_continue1
 		
-		# 'byte-position in distances'(t2) = 'base of distances'(s7) + bytes-offset(t1)
-		add 	t2, s7, t1				
-		sw		s10, 0(t2)				# store MAX-VALUE(s10) for 'current position of distances(t2)'
+		add 	t1, s7, t0			# 'byte-position in distances'(t1) = 'base of distances'(s7) + 'bytes-offset'(t0)	
+		sw	s10, 0(t1)			# storing 'MAX_VALUE'(s10) in 'current position of distances'(t1)
+		
 	dijkstra_continue1:
-		addi	t0, t0, 1				# increase loop-counter(t0), loop-counter(t0) += 1
-		jal		dijkstra_loop1			# jump to loop
+		addi	s4, s4, 1			# 'nodes-counter'(s4) += 1
+		jal	dijkstra_loop1			# jump to loop1
 	dijkstra_end1:
 	
-	# counter = 0
-	li		s8, 1
+	
+	li	s3, 1			# initialzation 'loop-counter'(s3) = 1
 	dijkstra_loop2:
-		# check counter(s8) < nodes-count(s2), else break
-		bge		s8, s2, dijkstra_end2
+		# checking 'counter'(s3) is less than 'nodes-count'(s2), else break.
+		bge	s3, s2, dijkstra_end2
 		
-		jal		minDistance				# s6:sptSet-base, s7: distance-base, s2: nodes-count, return min-index in (a0)
-		mv		s4, a0					# (s4) = min-index 'returned from minDistance'
+		mv	a0, s6 		# 'minDistance base of shortest-path-tree-set argument'(a0) = 'base of shortest-path-tree-set'(s6)
+		mv	a1, s7 		# 'minDistance base of distances argument'(a1) = 'base of distances'(s7)
+		mv	a2, s2		# 'minDistance nodes-count'(a2) = 'nodes-count'(s2)
+		
+		jal	minDistance	# calculating min-distance, 'min-index' will be in (a0)
+		
+		mv	s5, a0		# 'min-index'(s5) = 'returned min-index'(a0) by minDistance
 		
 		# set sptSet[0][min-index] = 1
-		# Initialization data for setting sptSet[0][min-index] by setItem
-		mv		s0, s6					# (s0) = base of sptSet(s6)
-		li		s1, 1					# rows-count(s1) = 1 for an array
-		li		a0, 0					# row-index(a0) = 0 for an array
-		mv		a1, s4					# col-index(a1) = min-index(s4)
-		li		a2, 1					# set 1 for sptSet[0][min-index]
-		jal		setItem					# setting
+		mv	a0, s6		# 'setItem base argument'(a0) = 'base of shortest-path-tree-set'(s6)
+		li	a1, 1		# 'setItem rows argument'(a1) = 1 for all arrays
+		mv	a2, s2		# 'setItem cols argument'(a2) = 'nodes-count'(s2)
+		li	a3, 0		# 'setItem row-index argument'(a3) = 0 for all arrays
+		mv	a4, s5		# 'setItem col-index argument'(a4) = 'min-index'(s5)
+		li	a5, 1		# 'setItem item-value argument'(a5) = 1
+		
+		jal	setItem		# setting sptSet[0][min-index] = 1
 				
+		li	s4, 0		# nodes-counter
+        	dijkstra_loop3:
+        		# checking 'nodes-counter'(s4) is less than 'nodes-count'(s2), else break.
+        		bge	s4, s2, dijkstra_end3
+
+			mv	a0, s6		# 'getItem base argument'(a0) = 'base of shortest-path-tree-set'(s6)		
+			li	a1, 1		# 'getItem rows argument'(a1) = 1 for all arrays		
+			mv	a2, s2		# 'getItem cols argument'(a2) = 'nodes-count'(s2)
+			li	a3, 0		# 'getItem row-index argument'(a3) = 0 for all arrays		
+			mv	a4, s4		# 'getItem col-index argument'(a4) = 'nodes-counter'(s4)
 		
-		li		s9, 0	# nodes-counter
-        dijkstra_loop3:
-        	# checking nodes-counter(s9) < nodes-count(s2), else break
-        	bge		s9, s2, dijkstra_end3
+        		jal	getItem		# getItem 'sptSet[0][nodes-counter]', it will be in (a0)
 
-        	# load sptSet[0][nodes-counter(s9)] // sptSet-base in (s6)
-        	mv		s0, s6		# copy sptSet-base(s6) in (s0), for sending into getItem
-        	li		s1, 1		# rows-count(s1) = 1 for an array
-        	# cols-count is in (s2)
-       		li		a0, 0		# row-index(a0) = 0 for an array
-        	mv		a1, s9		# col-index(a1) = nodes-counter(s9)
-        	jal		getItem		# getItem from sptSet: return value in (a0)
+			# checking 'sptSet[0][nodes-counter]'(a0) == 0,  else continue loop3
+        		bne	a0, zero, dijkstra_continue3 # {1}
 
-        	# check sptSet[0][nodes-counter(s9)] == 0, else continue loop3
-        	bne		a0, zero, dijkstra_continue3 # {1}
+			mv	a0, s0		# 'getItem base argument'(a0) = 'adjacency-matrix-base'(s0)
+			mv	a1, s2		# 'getItem rows argument'(a1) = 'nodes-count'(s2)
+			mv	a2, s2		# 'getItem cols argument'(a2) = 'nodes-count'(s2)
+			mv	a3, s5		# 'getItem row-index argument'(a3) = 'min-index'(s5)
+			mv	a4, s4		# 'getItem col-index argument'(a4) = 'nodes-counter'(s4)
+		
+        		jal	getItem		# getting 'adjacency-matrix[min-index][nodes-counter]', it will be in (a0)
 
-        	# load graph[min-index][nodes-counter(s9)] // graph-base in (s3)
-        	mv		s0, s3		# copy graph-base(s3) into (s0) for sending to getItem
-        	mv		s1, s2		# rows-count(s1) = cols-count(s2) for graph-matrix.
-        	# cols-count is in (s2)
-        	mv		a0, s4		# row-index(a0) = min-index(s4)
-        	mv		a1, s9		# col-index(a1) = nodes-counter(s9)
-        	jal		getItem		# get from graph: return value in (a0)
+			# checking 'adjacency-matrix[min-index][nodes-counter]'(a0) != 0,  else continue loop3
+        		beq	a0, zero, dijkstra_continue3	# {2}
+        		
+        		mv	s8, a0		# var(s8) for sum of 'adjacency-matrix[min-index][nodes-counter]' and 'distance[0][min-index]' = 'adjacency-matrix[min-index][nodes-counter]'(a0)
 
-        	# checking graph[min-index][nodes-counter(s9)] != 0, else continue loop3
-        	beq		a0, zero, dijkstra_continue3	# {2}
-        	mv		s11, a0
-
-        	# load distance[0][min-index]	// distances-base in (s7)
-        	mv		s0, s7			# copy distance-base(s7) into (s0) for sending to getItem
-        	li		s1, 1			# rows-count(s1) = 1 for an array
-        	# cols-count is in (s2)
-        	li		a0, 0			# row-index(a0) = 0 for an array
-        	mv		a1, s4			# col-index(a1) = min-index(s4)
-        	jal		getItem			# getting
-
-        	# checking distance[0][min-index] != MAX-VALUE(s10), else continue loop3
-        	beq			a0, s10, dijkstra_continue3 # {3}
-			add			s11, s11, a0
-        	# sum distance[0][min-index] + graph[min-index][nodes-counter(s9)]
-        
-        	# load distance[0][nodes-counter(s9)] // distances-base in (s7)
-        	mv		s0, s7
-        	li		s1, 1
-        	# cols-count is in (s2)
-        	li		a0, 0
-        	mv		a1, s9
-        	jal		getItem
+			mv	a0, s7		# 'getItem base argument'(a0) = 'distances-base'(s7)
+			li	a1, 1		# 'getItem rows argument'(a1) = 1 for all arrays
+			mv	a2, s2		# 'getItem cols argument'(a2) = 'nodes-count'(s2)
+			li	a3, 0		# 'getItem row-index argument'(a3) = 0 for all arrays
+			mv	a4, s5		# 'getItem col-index argument'(a4) = 'min-index'(s5)
+        		
+        		jal	getItem		# getting distance[0][min-index], it will be in (a0)
 			
-        	bge		s11, a0, dijkstra_continue3
-        	
-        	# update distance[nodes-counter(s9)] = distance[min-index] + graph[min-index][nodes-counter(s9)]
-        	mv		s0, s7	
-        	li		s1, 1
-        	li		a0, 0
-        	mv		a1, s9
-        	mv		a2, s11
-        	jal		setItem
-        dijkstra_continue3:
-        addi	s9, s9, 1
-        jal		dijkstra_loop3
-        dijkstra_end3:
-		
-		addi	s8, s8, 1
-		jal		dijkstra_loop2
+			# checking 'distance[0][min-index]'(a0) != MAX-VALUE(s10), else continue loop3
+        		beq	a0, s10, dijkstra_continue3 # {3}
+        		
+			add	s8, s8, a0	# var(s8) for sum of 'adjacency-matrix[min-index][nodes-counter]' and 'distance[0][min-index]' += 'distance[0][min-index]'(a0)
+			
+			mv	a0, s7		# 'getItem base argument'(a0) = 'distances-base'(s7)
+			li	a1, 1		# 'getItem rows argument'(a1) = 1 for all arrays
+			mv	a2, s2		# 'getItem cols argument'(a2) = 'nodes-count'(s2)
+			li	a3, 0		# 'getItem row-index argument'(a3) = 0 for all arrays
+			mv	a4, s4		# 'getItem col-index argument'(a4) = 'nodes-counter'(s4)
+			
+			jal	getItem		# getting distance[0][nodes-counter], it will be in (a0)
+			
+			# checking 'adjacency-matrix[min-index][nodes-counter] + distance[0][min-index]'(s8) is less than 'distance[0][nodes-counter]'(a0), else continue loop3
+        		bge	s8, a0, dijkstra_continue3
+        		
+        		mv	a0, s7		# 'setItem base argument'(a0) = 'distances-base'(s7)
+        		li	a1, 1		# 'setItem rows argument'(a1) = 1 for all arrays
+        		mv	a2, s2		# 'setItem cols argument'(a2) = 'nodes-count'(s2)
+        		li	a3, 0		# 'setItem row-index argument'(a3) = 0 for all arrays
+        		mv	a4, s4		# 'setItem col-index argument'(a4) = 'nodes-counter'(s4)
+        		mv	a5, s8		# 'setItem item-value argument'(a5) = 'adjacency-matrix[min-index][nodes-counter] + distance[0][min-index]'(s8)
+        		
+        		jal	setItem		# setting 'distance[0][nodes-counter]'
+        		
+        		dijkstra_continue3:
+        		addi	s4, s4, 1	# 'nodes-counter'(s4) += 1
+        		jal	dijkstra_loop3	# jump to loop3
+        	dijkstra_end3:	
+		addi	s3, s3, 1	# 'loop-counter'(s3) += 1
+		jal	dijkstra_loop2	# jump to loop2
 	dijkstra_end2:
 	
-	mv		a0, s7			# copy distance-array(s7) base into (a0)
-	# load saved-registers
-	lw		s0, 4(sp)		# (s0) for base of array for calling getItem
-	lw		s1, 8(sp)		# (s1) for rows-count
-	lw		s6, 12(sp)		# (s6) for base of sptSet
-	lw		s7, 16(sp)		# (s7) for base of distances
-	lw		s8, 20(sp)		# (s8) for loop2 counter
-	lw		s9, 24(sp)		# (s9) for loop3 counter
-	lw		s4, 28(sp)		# (s4) for min-index
-	lw		s11, 32(sp)		# (s11) for graph[min-index][nodes-counter(s9)] + distance[0][min-index]
+	mv	a0, s7			# 'distances-base return'(a0) = 'distances-base'(s7)
 	
-	lw		ra, 0(sp)		# restore return-address
-	addi	sp, sp, 36		# increasing stack-pointer
+	# restoring saved-registers
+	
+	lw	s0, 4(sp)		# (s0) for keeping 'adjacency-matrix-base'
+	lw	s2, 8(sp)		# (s2) for keeping 'nodes-count'
+	lw	s3, 12(sp)		# (s3) for keeping 'loop-counter'
+	lw	s4, 16(sp)		# (s4) for keeping 'nodes-counter'
+	lw	s5, 20(sp)		# (s5) for keeping 'source-node' and 'min-index'
+	lw	s6, 24(sp)		# (s6) for keeping 'base of shortest-path-tree-set'
+	lw	s7, 28(sp)		# (s7) for keeping 'base of distances'
+	lw	s8, 32(sp)		# (s8) for keeping a temp var in loop3
+	
+	lw	ra, 0(sp)		# restoring return-address
+	addi	sp, sp, 36		# restoring stack-pointer to pervious position
+	
 	jalr	zero, 0(ra)		# return, base of distances in (a0)
 	
 	
-# base of shortest-path-tree-set in (s6)
-# base of distances-array in (s7)
-# vertex-count(nodes-count) in (s2)
-# --------------------------------------
-# return min-index in (a0)
+# ----------------------------------------------------
+# Finding min-distance
+# ----------------------------------------------------
+# ------------------- parameters ---------------------	
+# 'base of shortest-path-tree-set' in (a0)
+# 'base of distances-array' in        (a1)
+# 'nodes-count' in                    (a2)
+# ----------------------------------------------------
+# return: 'min-index' in (a0)
+# ----------------------------------------------------
 minDistance:
-	# store return-address in stack
-	addi	sp, sp, -24
-	sw		ra, 0(sp)
+	addi	sp, sp, -28		# reducing stack-pointer
 	
-	# store save-register (s0) in the stacke, for using (s0) to sent it to getItem as base-address
-	sw		s0, 4(sp)
+	sw	ra, 0(sp)		# saving return-address in the stack
 	
-	# store save-register (s1) in the stack, for using (s1) to send it to getItem  as rows-count
-	sw		s1, 8(sp)
+	# storing saved-registers into the stack
 	
-	# store saved-registers in stack
-	sw		s5, 12(sp)
+	sw	s0, 4(sp)		# (s0) for keeping 'base of shortest-path-tree-set'
+	sw	s1, 8(sp)		# (s1) for keeping 'base of distances-array'
+	sw	s2, 12(sp)		# (s2) for keeping 'nodes-count'
+	sw	s4, 16(sp)		# (s4) for keeping 'nodes-counter' (loop-counter)
+	sw	s5, 20(sp)		# (s5) for keeping 'min-value'
+	sw	s6, 24(sp)		# (s6) for keeping 'min-index'
 	
-	sw		s8, 16(sp)
+	mv	s0, a0			# 'base of shortest-path-tree-set'(s0) = 'base of shortest-path-tree-set parameter'(a0)
+	mv	s1, a1			# 'base of distances-array'(s1) = 'base of distances-array parameter'(a1)
+	mv	s2, a2			# 'nodes-count'(s2) = 'nodes-count parameter'(a2)
+		
+	mv	s5, s10			# initialzation 'min-value'(s5) = 'MAX_VALUE'(s10)
+	li	s6, -1			# initialzation 'min-index'(s6) = -1
 	
-	sw		s9, 20(sp)
-	
-	# values Initialization
-	li		s1, 1	     			# rows-count(s1) is equal '1' for an array to send to 'getItem'
-	li		s8, 1000					# Initialize Max-value = (-1) => in unsigned it's Max-value
-	li		s9, -1					# Initialize min-index
-	li		s5, 0					# Initialize vertex-counter (v = 0)
-	
+	li	s4, 0			# initialzation 'nodes-counter'(s4) = 0
 	
 	minDistance_loop:
-		bge		s5, s2, minDistance_end		# checking vertex-counter(s5) is less than vertex-count(s2)
+		# checking 'nodes-counter'(s4) is less than 'nodes-count'(s2), else break.
+		bge	s4, s2, minDistance_end
 		
-		# base of shortest-path-tree-set is in (s6), copy it into (s0) for sending to getItem as base-address
-		mv		s0, s6
+		mv	a0, s0				# 'getItem base argument'(a0) = 'base of shortest-path-tree-set'(s0)
+		li	a1, 1				# 'getItem rows argument'(a1) = 1 for all arrays
+		mv	a2, s2				# 'getItem cols argument'(a2) = 'nodes-count'(s2)
+		li	a3, 0				# 'getItem row-index argument'(a3) = 0 for all arrays
+		mv	a4, s4				# 'getItem col-index argument'(a4) = 'nodes-counter'(s4)
 		
-		# (s1) = 1, (s2) = vertex-count(nodes-count)
-	
-		# getting sptSet[0][vertex-counter(a1)]				
-		li		a0, 0				# row-index (a0) = '0' for an array
-		mv		a1, s5				# col-index (a1) = vertex-counter(s5)
-		jal		getItem				# getting sptSet[0][vertex-counter(a1)]
+		jal	getItem				# getting sptSet[0][nodes-counter], it will be in (a0)
 		
-		# checking sptSet[0][vertex-counter(a1)] == false, else continue
-		bne		a0, zero, minDistance_continue
+		# checking 'sptSet[0][nodes-counter]'(a0) == 'false'(0), else continue.
+		bne	a0, zero, minDistance_continue
 		
-		# base of distances-array is in (s7), copy it into (s0) for sending to getItem as base-address
-		mv		s0, s7
+		mv	a0, s1				# 'getItem base argument'(a0) = 'base of distances-array'(s1)
+		li	a1, 1				# 'getItem rows argument'(a1) = 1 for all arrays
+		mv	a2, s2				# 'getItem cols argument'(a2) = 'nodes-count'(s2)
+		li	a3, 0				# 'getItem row-index argument'(a3) = 0 for all arrays
+		mv	a4, s4				# 'getItem col-index argument'(a4) = 'nodes-counter'(s4)
 		
-		# getting distances[0][vertex-counter(a1)]	
-		li		a0, 0				# row-index (a0) = '0' for an array
-		mv		a1, s5				# col-index (a1) = vertex-counter(s5)
-		jal		getItem				# getting distances[0][vertex-counter(a1)]: return value in (a0)
+		jal	getItem				# getting distances[0][vertex-counter], it will be in (a0)
 		
-		# checking distances[0][vertex-counter(a1)] <= Max-value(s8), else continue
-		blt 	s8, a0, minDistance_continue
+		# checking 'distances[0][nodes-counter]'(a0) <= min-value(s5), else continue.
+		blt 	s5, a0, minDistance_continue
 		
-		mv		s8, a0				# Max-value(s5) = distances[0][vertex-counter(s5)]
-		mv		s9, s5				# min-index(s9) = vertex-counter(s5)
+		mv	s5, a0				# 'min-value'(s5) = 'distances[0][nodes-counter]'(a0)
+		mv	s6, s4				# 'min-index'(s6) = 'nodes-counter'(s4)
 		
 	minDistance_continue:
-		addi	s5, s5, 1			# increasing vertex-counter(s5), vertex-counter(s5) += 1
-		jal		minDistance_loop
+		addi	s4, s4, 1			# 'nodes-counter'(s4) += 1
+		jal	minDistance_loop		# jump to loop
 	minDistance_end:
 	
-	mv		a0, s9					# (a0) = min-index(s9), for return it
+	mv	a0, s6			# 'min-index return'(a0) = 'min-index'(s6)
 	
-	# restore return-address: loading it from the stack.
-	lw		ra, 0(sp)
+	# restoring saved-registers from the stack
 	
-	# restore saved-register: loading them from the stack.
-	lw		s0, 4(sp)
-	lw		s1, 8(sp)
-	lw		s5, 12(sp)
-	lw		s8, 16(sp)
-	lw		s9, 20(sp)
-
-	# restore stack-pointer to pervious position.
-	addi	sp, sp, 24
-	jalr	zero, 0(ra)
+	lw	s0, 4(sp)		# (s0) for keeping 'base of shortest-path-tree-set'
+	lw	s1, 8(sp)		# (s1) for keeping 'base of distances-array'
+	lw	s2, 12(sp)		# (s2) for keeping 'nodes-count'
+	lw	s4, 16(sp)		# (s4) for keeping 'nodes-counter' (loop-counter)
+	lw	s5, 20(sp)		# (s5) for keeping 'min-value'
+	lw	s6, 24(sp)		# (s6) for keeping 'min-index'
+	
+	lw	ra, 0(sp)		# restoring return-address from the stack
+	addi	sp, sp, 28		# restore stack-pointer to pervious position
+	
+	jalr	zero, 0(ra)		# return, 'min-index' in (a0)
 	
 	
-	
-# distance array base in (s0)
-# count of nodes in (s2)
-# source in (s5)
+# ----------------------------------------------------
+# printing shortest distances from a specific source
+# ----------------------------------------------------
+# ------------------- parameters ---------------------	
+# 'base of adjacency matrix' in (a0)
+# 'nodes-count'	             in (a1)
+# 'source-node'              in (a5)
+# ----------------------------------------------------
+# void
+# ----------------------------------------------------
 printDistances:
-	addi	sp, sp, -12
-	# store return-address into stack
-	sw		ra, 0(sp)
+	addi	sp, sp, -20		# reducing stack-pointer	
+			
+	sw	ra, 0(sp)		# saving return-address in the stack
 	
-	# save saved-registers into stack
-	sw		s1, 4(sp)		# using (s1) for rows-count to send to getItem
-	sw		s3, 8(sp)		# using (s3) for loop-counter
+	# storing saved-registers into the stack
 	
-	# print "distances" string
-	la		a0, str_distances
-	jal		printStr
+	sw	s0, 4(sp)		# (s0) for keeping 'adjacency-matrix-base'
+	sw	s2, 8(sp)		# (s2) for keeping 'nodes-count'(cols-count)
+	sw	s4, 12(sp)		# (s4) for keeping 'cols-counter' (loop-counter)
+	sw	s5, 16(sp)		# (s5) for keeping 'source-node'
 	
-	# Value initialization
-	li		s1, 1			# (s1): rows-count for an array
-	li		s3, 0			# (s3): loop-counter
+	mv	s0, a0			# 'adjacency-matrix-base'(s0) = 'adjacency-matrix-base parameter'(a0)
+	mv	s2, a1			# 'nodes-count'(s2) = 'nodes-count parameter'(a1)
+	mv	s5, a5			# 'source-node'(s5) = 'source-node parameter'(a5)
+	la	a0, str_distances	# load "distances:" string for printing
+	jal	printStr		# printing "distances:" string
 	
-	# Loop for iterating distances
+	li	s4, 0			# initialzation 'cols-counter'(s4) = 0
+	
 	printDistances_loop:
-		bgeu	s3, s2, printDistances_end		# Checking loop-counter(s3) < nodes-count(s2), else break
+		bgeu	s4, s2, printDistances_end	# Checking 'cols-counter'(s4) < 'nodes-count'(s2), else break
 		
-		# Print	source-node(s5) name
-		mv		a0, s5
-		jal		printInt
+		mv	a0, s5				# 'int-item'(a0) for printing = 'source-node'(s5)
+		jal	printInt			# printing source node
 		
-		# Print	" to " string
-		la		a0, str_to
-		jal		printStr
+		la	a0, str_to			# loading " to " string for printing
+		jal	printStr			# printing " to " string
 		
-		# Print	destination-node(loop-counter(s3)) name
-		mv		a0, s3
-		jal		printInt
+		mv	a0, s4				# 'int-item'(a0) for printing = 'rows-counter'(s4) => it's destination node
+		jal	printInt			# printing destination node
 		
-		# Print " : " string
-		la		a0, str_colon
-		jal		printStr
+		la	a0, str_colon			# loading " : " string for printing
+		jal	printStr			# printing " : " string
 		
-		# Print "\t" string
-		la		a0, str_TAB
-		jal		printStr
+		la	a0, str_TAB			# loading "\t" string for printing
+		jal	printStr			# printing "\t" string
 		
-		# get distance from distances-array => distances-array[0][loop-counter(s3)]
-		# base was in (s0)
-		# rows-count was 1 in (s1)
-		# cols-count was in (s2)
-		li		a0, 0		# row-index is 0 for an array
-		mv		a1, s3		# col-index: loop-counter(s3)
-		jal		getItem		# return: distance in (a0)
-		jal		printInt	# print distance
+		mv	a0, s0				# 'getItem base argument'(a0) = 'adjacency-matrix-base'(s0)
+		li	a1, 1				# 'getItem rows argument'(a1) = 1 for all arrays
+		mv	a2, s2				# 'getItem cols argument'(a2) = 'nodes-count'(s2)
+		li	a3, 0				# 'getItem row-index argument'(a3) = 0 for all arrays
+		mv	a4, s4				# 'getItem col-index argument'(a4) = 'cols-counter'(s4)
 		
-		# Print "\n" string
-		la		a0, str_NL
-		jal		printStr
+		jal	getItem				# getting distance[0][cols-counter], it will be in (a0)
+		jal	printInt			# printing distance[0][cols-counter]
 		
-		# increase loop-counter(s3), loop-counter(s3) += 1
-		addi	s3, s3, 1
+		la	a0, str_NL			# loading "\n" string for printing
+		jal	printStr			# printing "\n" string
 		
-		jal		printDistances_loop	#jump
+		addi	s4, s4, 1			# 'cols-counter'(s4) += 1
+		
+		jal	printDistances_loop		# jump to loop
 	printDistances_end:
 	# restore return-address from stack
-	lw		ra, 0(sp)
 	
-	# restore saved-registers into stack
-	lw		s1, 4(sp)		# using (s1) for rows-count
-	lw		s3, 8(sp)		# using (s3) for loop-counter
 	
-	# restore stack-pointer to pervious position
-	addi	sp, sp, 12
+	# restoring saved-registers from the stack
 	
-	jalr	zero, 0(ra)	# return
+	lw	s0, 4(sp)		# (s0) for keeping 'adjacency-matrix-base'
+	lw	s2, 8(sp)		# (s2) for keeping 'nodes-count'(cols-count)
+	lw	s4, 12(sp)		# (s4) for keeping 'cols-counter' (loop-counter)
+	lw	s5, 16(sp)		# (s5) for keeping 'source-node'
 	
-		
-# nodes-count in (s1)
-# ---------------------------
-# return: matrix-base in (a0)
+	lw	ra, 0(sp)		# restoring return-address from the stack
+	addi	sp, sp, 20		# restore stack-pointer to pervious position
+	
+	jalr	zero, 0(ra)		# return, void
+	
+	
+# ----------------------------------------------------
+# allocating adjacency matrix and get items from input
+# ----------------------------------------------------
+# ------------------- parameters ---------------------	
+# 'nodes-count' in (a0)
+# ----------------------------------------------------
+# return: 'base of adjacency matrix' in (a0)
+# ----------------------------------------------------
 readGraph:
-	# increase stack-pointer for saving items
-	addi	sp, sp, -20
+	addi	sp, sp, -24		# reducing stack-pointer
 	
-	# store return-address to the stack
-	sw		ra, 0(sp)
+	sw	ra, 0(sp)		# saving return-address in the stack
 	
-	# stroe saved-registers to the stack
-	sw		s0, 4(sp)		# s0 for matrix-base for sending into setItem 
-	sw		s2, 8(sp)		# s2 for cols-count for sending into setItem
-	sw		s3, 12(sp)		# s3 for rows-counter
-	sw		s4, 16(sp)		# s4 for cols-counter
+	# storing saved-registers into the stack
 	
-	# set 'rows-count'(a1), 'cols-count'(a2) for matrix-alloc arguments.
-	mv		a1, s1			# 'rows-count'(a1) = 'nodes-count'(s1)
-	mv		a2, s1			# 'cols-count'(a2) = 'nodes-count'(s2)
-	jal		matrixAlloc		# allocate a matrix
+	sw	s0, 4(sp)		# (s0) for keeping 'adjacency-matrix-base'
+	sw	s1, 8(sp)		# (s1) for keeping 'nodes-count'
+	sw	s3, 12(sp)		# (s3) for keeping 'rows-counter'
+	sw	s4, 16(sp)		# (s4) for keeping 'cols-counter'
+	sw	s5, 20(sp)		# (s5) for keeping 'edge-value'
 	
-	# save base of new matrix in (s0), for using in setItem.
-	mv		s0, a0			# (s0) = 'base of new matrix'(a0)
+	# saving nodes-count in a saved-register for using in the loops
+	mv	s1, a0			# 'nodes-count'(s1) = 'nodes-count-parameter'(a0)
 	
-	# save 'nodes-count' in (s2) as cols-count for using in setItem.
-	mv		s2, s1			# (s2) = 'nodes-count'(s1)
+	# arguments for allocating the adjacency matrix
+	mv	a1, a0			# 'matrix-rows'(a1) = 'nodes-count'(a0)
+	mv	a2, a0			# 'cols-count'(a2)  = 'nodes-count'(a0)
+	jal	matrixAlloc		# allocating the adjacency matrix, base of it will be in (a0)
 	
-	# Initialization rows-counter(s3)
-	li		s3, 0			# rows-counter(s3) = 0
+	mv	s0, a0			# 'adjacency-matrix-base'(s0) = allocated matrix(a0)
+	
+	
+	li	s3, 0			# initialzation 'rows-counter'(s3) = 0
 	
 	readGraph_loop1:
-		# checking rows-counter(s3) is less than < rows-count(s1), else break.
-		bge		s3, s1, readGraph_end1
+		# checking 'rows-counter'(s3) is less than 'nodes-count'(s1), else break
+		bge	s3, s1, readGraph_end1
 		
-		# Initialization cols-counter(s4)
-		addi	s4, s3, 1	# cols-counter(s4) = rows-counter(s3) + 1
+		addi	s4, s3, 1	# initialzation 'cols-counter'(s4) = 'rows-counter'(s3) + 1
 			readGraph_loop2:
-				# checking cols-counter(s4) is less than < cols-count(s2), else break.
-				bge		s4, s2, readGraph_end2
+				# checking 'cols-counter'(s4) is less than 'nodes-count'(s1), else break.
+				bge	s4, s1, readGraph_end2
 				
-				# print messages for reading graph edges:
+				# printing messages for reading graph edges
 				
-				# print "edge "
-				la		a0, str_enterEdge	
-				jal		printStr		
+				la	a0, str_enterEdge	# loading "edge " string for printing
+				jal	printStr		# printing "edge " string
 				
-				# print source-node
-				mv		a0, s3
-				jal		printInt
+				mv	a0, s3			# 'int-item'(a0) for print = 'rows-counter'(s2)	=> it's source node
+				jal	printInt		# printing source node
 				
-				# print " to "
-				la		a0, str_between
-				jal		printStr
+				la	a0, str_between		# loading " to " string for printing
+				jal	printStr		# printing " to " string
 				
-				# print destination-node
-				mv		a0, s4
-				jal		printInt
-				
-				# print ":"
-				la		a0, str_colon
-				jal		printStr
-				
-				# read edge-weight
-				jal		readInt
+				mv	a0, s4			# 'int-item'(a0) for print = 'cols-counter'(s3) => it's destination node
+				jal	printInt		# printing destination node
 				
 				
-				mv		a2, a0			# copy edge--weight(a0) into (a2) as 'item-value' for setItem.
-				mv		a0, s3			# copy 'row-counter'(s3) into (a0) as 'row-index' for setItem.
-				mv		a1, s4			# copy 'col-counter'(s4) into (a1) as 'col-index' for setItem.
+				la	a0, str_colon		# loading ":" string for printing
+				jal	printStr		# printing ":" string
 				
-				addi	sp, sp, -4
+				# reading edge-value from input
+				jal	readInt			# reading edge-value, it will be in (a0)
 				
-				# store argument for using in lower-triangle items setting.
-				sw		a2, 0(sp)		# save 'item-value'(a2)
+				mv	s5, a0			# 'edge-value'(s5) = 'input-value'(a0)
 				
-				# set item[row-counter][col-counter]
-				jal		setItem
+				# preparation arguments for upper triangular setItem 
+				mv	a0, s0			# 'setItem base argument'(a0) = 'adjacency-matrix-base'(s0)
+				mv	a1, s1			# 'setItem rows argument'(a1) = 'nodes-count'(s1)
+				mv	a2, s1			# 'setItem cols argument'(a2) = 'nodes-count'(s1)
+				mv	a3, s3			# 'setItem row-index argument'(a3) = 'rows-counter'(s3)
+				mv	a4, s4			# 'setItem col-index argument'(a4) = 'cols-counter'(s4)
+				mv	a5, s5			# 'setItem item-value argument'(a5) = 'edge-value'(s5)
 				
-				# load argument for using in lower-triangle items setting.
-				lw		a2, 0(sp)		# load 'item-value'(a2)
+				jal	setItem			# setting edge-value upper triangular
 				
-				addi	sp, sp, 4
+				# preparation arguments for lower triangular setItem		
+				mv	a0, s0			# 'setItem base argument'(a0) = 'adjacency-matrix-base'(s0)
+				mv	a1, s1			# 'setItem rows argument'(a1) = 'nodes-count'(s1)
+				mv	a2, s1			# 'setItem cols argument'(a2) = 'nodes-count'(s1)
+				mv	a3, s4			# 'setItem row-index argument'(a3) = 'cols-counter'(s4)
+				mv	a4, s3			# 'setItem col-index argument'(a4) = 'rows-counter'(s3)
+				mv	a5, s5			# 'setItem item-value argument'(a5) = 'edge-value'(s5)
 				
-				# swap 'row-index' and 'col-index' for setItem arguments.
-				mv		a0, s4			# copy 'col-counter'(s4) into (a0) as 'row-index' for setItem.
-				mv		a1, s3			# copy 'row-counter'(s3) into (a1) as 'col-index' for setItem.
-				# set item[col-counter][row-counter]
-				jal		setItem
+				jal	setItem			# setting edge-value for lower triangular
 				
-				# increase 'col-counter'(s4)
-				addi	s4, s4, 1		# 'col-counter'(s4) += 1
-				jal		readGraph_loop2	# jump
+				addi	s4, s4, 1		# 'cols-counter'(s4) += 1
+				jal	readGraph_loop2		# jump to loop2
 			readGraph_end2:
 			
-			# increase 'row-counter'(s3)
 			addi	s3, s3, 1			# 'row-counter'(s3) += 1
-			jal		readGraph_loop1		# jump
+			jal	readGraph_loop1			# jump to loop1
 	readGraph_end1:
-	mv		a0, s0			# copy base-address into (a0): for return
-	# load saved-registers from the stack
-	lw		s0, 4(sp)		# s0 for matrix-base for sending into setItem 
-	lw		s2, 8(sp)		# s2 for cols-count for sending into setItem
-	lw		s3, 12(sp)		# s3 for rows-counter
-	lw		s4, 16(sp)		# s4 for cols-counter
+	mv		a0, s0		# return-value(a0) = 'adjacency-matrix-base'(s0)
 	
-	# load return-address from the stack
-	lw		ra, 0(sp)
+	# restoring saved-registers from the stack
 	
-	# restore stack-pointer to pervious position
-	addi	sp, sp, 20
+	lw	s0, 4(sp)		# (s0) for keeping 'adjacency-matrix-base'
+	lw	s1, 8(sp)		# (s1) for keeping 'nodes-count'
+	lw	s3, 12(sp)		# (s3) for keeping 'rows-counter'
+	lw	s4, 16(sp)		# (s4) for keeping 'cols-counter'
+	lw	s5, 20(sp)		# (s5) for keeping 'edge-value'
 	
-	jalr	zero, 0(ra)		# return
+	lw	ra, 0(sp)		# restoring return-address from the stack
+	
+	addi	sp, sp, 24		# restore stack-pointer to pervious position
+	
+	jalr	zero, 0(ra)		# return, 'base of adjacency matrix' in (a0)
 		
-
-# 'rows-count' in  (a1)
-# 'cols-count' in  (a2)
-# ---------------------------------------
+		
+# ----------------------------------------------------
+# allocating new matrix from the heap
+# ----------------------------------------------------
+# ------------------- parameters ---------------------
+# 'matrix-rows' in  (a1)
+# 'matrix-cols' in  (a2)
+# ----------------------------------------------------
 # return: base of allocated matrix in (a0)
+# ----------------------------------------------------
 matrixAlloc:
-	slli	a0, a2, 2			# each row need 'cols * 4' bytes
-	mul		a0, a0, a1			# matrix need 'row-bytes * rows-count' bytes
-	li, 	a7, 9				# syscall for allocate heap memmory
-	ecall						# run syscall
-	jalr	ra, 0(ra)			# return
+	slli	a0, a2, 2		# row-bytes(a0) = matrix-cols(a2) * 4 => each row needs cols * 4 bytes
+	mul	a0, a0, a1		# matrix-bytes(a1) = matrix-rows(a1) * row-bytes(a0)
+	
+	li, 	a7, 9			# loading syscall 9 for allocating from the heap
+	ecall				# run allocating syscall
+	
+	jalr	ra, 0(ra)		# return, base of allocated matrix in (a0)
 
-
-# 'matrix-base' in (s0)
-# 'matrix-rows-count' in (s1)
-# 'matrix-cols-count' in (s2)
-# 'row-index'   in (a0)
-# 'col-index'   in (a1)
-# ----------------------------
-# return: 'edge-value' in (a0)
+# ----------------------------------------------------
+# getting an item from matrix by row-index, col-index
+# ----------------------------------------------------
+# ------------------- parameters ---------------------
+# 'matrix-base' in (a0)
+# 'matrix-rows' in (a1)
+# 'matrix-cols' in (a2)
+# 'row-index'   in (a3)
+# 'col-index'   in (a4)
+# ----------------------------------------------------
+# return: 'item-value' in (a0)
+# ----------------------------------------------------
 getItem:
-	# save 'return-address' to stack
-	addi	sp, sp, -4
-	sw	ra, 0(sp)
+	addi	sp, sp, -4		# reducing stack-pointer
+	sw	ra, 0(sp)		# saving return-address in the stack
 	
-	jal	getItemAddress 			# 'edge-address' in (a0)
+	jal	getItemAddress 		# calculating item-address, it will be in (a0)
 	
-	# load 'return-address' from stack
-	lw	ra, 0(sp)
-	addi	sp, sp, 4
+	lw	a0, 0(a0)		# loading item-value from calculated address, it will be in (a0)
 	
-	lw	a0, 0(a0)				# load 'edge-value' from array[(a0)][(a1)]
-	jalr	zero, 0(ra)			# return 'edge-value'
+	lw	ra, 0(sp)		# restoring return-address from the stack
+	addi	sp, sp, 4		# increasing stack-pointer
 	
-
-# 'matrix-base' in (s0)
-# 'matrix-rows' in (s1)
-# 'matrix-cols' in (s2)
-# 'row-index'   in (a0)
-# 'col-index'   in (a1)
-# 'item-value'  in (a2)
+	jalr	zero, 0(ra)		# return, item-value in (a0)
+	
+	
+# ----------------------------------------------------
+# Setting an item in matrix by row-index, col-index
+# ----------------------------------------------------
+# ------------------- parameters ---------------------
+# 'matrix-base' in (a0)
+# 'matrix-rows' in (a1)
+# 'matrix-cols' in (a2)
+# 'row-index'   in (a3)
+# 'col-index'   in (a4)
+# 'item-value'  in (a5)
+# ----------------------------------------------------
+# void
+# ----------------------------------------------------
 setItem:
-	# save 'return-address' to stack
-	addi	sp, sp, -4
-	sw		ra, 0(sp)
+	addi	sp, sp, -4		# reducing stack-pointer
+	sw	ra, 0(sp)		# saving return-address in the stack
 	
-	jal	getItemAddress 			# 'item-address' in (a0)
+	jal	getItemAddress 		# calculating item-address, item-address will be in (a0)
 	
-	# load 'return-address' from stack
-	lw		ra, 0(sp)
-	addi	sp, sp, 4
+	sw	a5, 0(a0) 		# saving item-value(a5) for calculated address
 	
-	sw		a2, 0(a0) 			# save 'item-value' in array[(a0)][(a1)]
-	jalr	zero, 0(ra) 		# return
+	lw	ra, 0(sp)		# restoring return-address from the stack
+	addi	sp, sp, 4		# restoring stack-pointer to the previous position
 	
-
-# 'matrix-base' in (s0)
-# 'matrix-rows' in (s1)
-# 'matrix-cols' in (s2)
-# 'row-index'   in (a0)
-# 'col-index'   in (a1)
-# ------------------------------
-# return: 'edge-address' in (a0)
+	jalr	zero, 0(ra) 		# return, void
+	
+	
+# ----------------------------------------------------
+# Getting bytes-address for an item in matrix
+# ----------------------------------------------------
+# ------------------- parameters ---------------------
+# 'matrix-base' in (a0)
+# 'matrix-rows' in (a1)
+# 'matrix-cols' in (a2)
+# 'row-index'   in (a3)
+# 'col-index'   in (a4)
+# ----------------------------------------------------
+# return: 'item-address' in (a0)
+# ----------------------------------------------------
 getItemAddress:
-	bgeu	a0, s1, outOfBound	# check 'row-index' < 'matrix-rows'
-	bgeu	a1, s2, outOfBound 	# check 'col-index' < 'matrix-cols'
-	slli	t0, s2, 2		# 'row-bytes' = `matrix-cols` * 4 (int-size)
-	mul	t0, t0, a0		# 'row-index' * 'row-size' (to find rows-offset)
-	slli	t1, a1, 2		# 'col-index' * 4 (int-size) (to find cols-offset)
-	add	t0, s0, t0		# address = base + rows-offset
-	add	a0, t0, t1		# address += cols-offset
-	jalr	zero, 0(ra)		# return address
-
-
-# 'matrix-base' in (s0)
-# 'matrix-rows' in (s1)
-# 'matrix-cols' in (s2)
-printMatrix:
-	# save 'return-address' to stack
-	addi	sp, sp, -4
-	sw	ra, 0(sp)
+	bge	a3, a1, outOfBound	# check row-index(a3) < matrix-rows(a1), else out-of-bound
+	bge	a4, a2, outOfBound 	# check col-index(a4) < matrix-cols(a2)
 	
-	li	t0, 0		# 'row-counter'(t0) = 0
+	slli	t0, a2, 2		# row-bytes(t0) = matrix-cols(a2) * 4 (int-size)
+	mul	t0, a3, t0		# rows-offset(t0) = row-index(a3) * row-bytes(t0)
+	slli	t1, a4, 2		# cols-offset(t1) = col-index(a4) * 4 (int-size)
+	add	t0, a0, t0		# row-address(t0) = matrix-base(a0) + rows-offset(t0)
+	add	a0, t0, t1		# address(a0) = row-address(t0) + cols-offset(t1)
+	
+	jalr	zero, 0(ra)		# return, item-address in (a0)
+
+
+# ----------------------------------------------------
+# Printing matrix to the console
+# ----------------------------------------------------
+# ------------------- parameters ---------------------
+# 'matrix-base' in (a0)
+# 'matrix-rows' in (a1)
+# 'matrix-cols' in (a2)
+# ----------------------------------------------------
+# void
+# ----------------------------------------------------
+printMatrix:
+	addi	sp, sp, -24		# reducing stack-pointer
+	
+	sw	ra, 0(sp)		# saving return-address in the stack
+	
+	# saving saved-register in the stack
+	sw	s0, 4(sp)		# (s0) for keeping 'matrix-base'
+	sw	s1, 8(sp)		# (s1) for keeping 'matrix-rows'
+	sw	s2, 12(sp)		# (s2) for keeping 'matrix-cols'
+	sw	s3, 16(sp)		# (s3) for keeping 'rows-counter'
+	sw	s4, 20(sp)		# (s4) for keeping 'cols-counter'
+	
+	mv	s0, a0			# 'matrix-base'(s0) = 'matrix-base-parameter'(a0)
+	mv	s1, a1			# 'matrix-rows'(s1) = 'matrix-rows-parameter'(a1)
+	mv	s2, a2			# 'matrix-cols'(s2) = 'matrix-cols-parameter'(a1)
+	
+	li	s3, 0			# initialzation 'rows-counter'(s3) = 0
 	printMatrix_loop1:
-		# check 'row-counter'(t0) < 'matrix-size'(s1)
-		bgeu	t0, s1, printMatrix_end1
-		li	t1, 0		# 'col-counter' (t1) = 0
+		# checking 'rows-counter'(s3) is less than 'matrix-rows'(s1), else break
+		bge	s3, s1, printMatrix_end1
+		
+		li	s4, 0		# initialzation 'cols-counter'(s4) = 0
 		printMatrix_loop2:
-			# check 'col-counter'(t1) < 'matrix-cols'(s2)
-			bgeu	t1, s2, printMatrix_end2
+			# checking 'cols-counter'(s4) is less than 'matrix-cols'(s2), else break
+			bge	s4, s2, printMatrix_end2
 			
-			# save 'row-counter'(t0) and 'col-counter'(t1) to stack
-			addi	sp, sp, -8
-			sw	t0, 0(sp)
-			sw	t1, 4(sp)
+			# preparation arguments for getItem, matrix[rows-counter][cols-counter]
+			mv	a0, s0		# 'getItem base-address argument'(a0) = 'matrix-base'(s0)
+			mv	a1, s1		# 'getItem rows argument'(a1) = 'matrix-rows'(s1)
+			mv	a2, s2		# 'getItem cols argument'(a2) = 'matrix-cols'(s2)
+			mv	a3, s3		# 'getItem row-index argument'(a3) = 'rows-counter'(s3)
+			mv	a4, s4		# 'getItem col-index argument'(a4) = 'cols-counter'(s4)
 			
-			# initialization arguments for 'getItem'
-			mv	a0, t0		# copy 'row-counter'(t0) to 'a0'
-			mv	a1, t1		# copy 'col-counter'(t1) to 'a1'
+			jal	getItem		# getting matrix[rows-counter][cols-counter], it will be in (a0)
+			jal	printInt	# printing matrix[rows-counter][cols-counter] to the console
 			
-			jal	getItem		# get item = [a0][a1]
-			jal	printInt	# print current item
+			la	a0, str_TAB	# loading "\t" string for printing
+			jal	printStr	# printing "\t" string
 			
-			# print tab'\t' after item
-			la	a0, str_TAB
-			jal	printStr
-			
-			# load 'row-counter'(t0) and 'col-counter'(t1) from stack
-			lw	t0, 0(sp)
-			lw	t1, 4(sp)
-			addi	sp, sp, 8
-			
-			addi	t1, t1, 1	# 'col-counter'(t1) += 1
-			jal	printMatrix_loop2 # jump to loop2
+			addi	s4, s4, 1	# 'cols-counter'(s4) += 1
+			jal	printMatrix_loop2 	# jump to loop2
 		printMatrix_end2:
 		
-		# print new-line'\n' after row
-		la	a0, str_NL
-		jal	printStr
+		la	a0, str_NL		# loading "\n" string for printing
+		jal	printStr		# printing "\n" string
 		
-		addi	t0, t0, 1		# 'row-counter'(t0) += 1
+		addi	s3, s3, 1		# 'rows-counter'(s3) += 1
 		jal	printMatrix_loop1	# jump to loop1
 	printMatrix_end1:
 	
-	# load 'return-address' from stack
-	lw	ra, 0(sp)
-	addi	sp, sp, 4
+	# restoring saved-register from the stack
+	lw	s0, 4(sp)		# (s0) for keeping 'matrix-base'
+	lw	s1, 8(sp)		# (s1) for keeping 'matrix-rows'
+	lw	s2, 12(sp)		# (s2) for keeping 'matrix-cols'
+	lw	s3, 16(sp)		# (s3) for keeping 'rows-counter'
+	lw	s4, 20(sp)		# (s4) for keeping 'cols-counter'
 	
-	jalr 	zero, 0(ra)		# return
+	lw	ra, 0(sp)		# restoring return-address in the stack
+	addi	sp, sp, 24		# restoring stack-pointer to the previous position
+	
+	jalr 	zero, 0(ra)		# return, void
 
-# read int from input
-# -------------------
-# return: int in (a0)
+
+# ----------------------------------------------------
+# Reading int number from the console
+# ----------------------------------------------------
+# ------------------- parameters ---------------------
+# N/A
+# ----------------------------------------------------
+# return: int number in (a0)
+# ----------------------------------------------------
 readInt:
-	li		a7, 5
-	ecall
-	jalr	zero, 0(ra)
-
-# number in (a0)
-printInt:
-	li	a7, 1			# syscall for print int-number
-	ecall				# print number
-	jalr	zero, 0(ra)		# return
+	li	a7, 5			# loading syscal(5) for reading int to the (a7)
+	ecall				# reading int-number from the console, it will be in (a0)
 	
-# string in (a0)
+	jalr	zero, 0(ra)		# return, int-number in (a0)
+
+
+# ----------------------------------------------------
+# Printing int number to the console
+# ----------------------------------------------------
+# ------------------- parameters ---------------------
+# 'int-number' in (a0)
+# ----------------------------------------------------
+# void
+# ----------------------------------------------------
+printInt:
+	li	a7, 1			# load syscal(1) to the (a7) for printing int 
+	ecall				# printing int-number to the console
+	
+	jalr	zero, 0(ra)		# return, void
+	
+	
+# ----------------------------------------------------
+# Printing string to the console
+# ----------------------------------------------------
+# ------------------- parameters ---------------------
+# 'string' in (a0)
+# ----------------------------------------------------
+# void
+# ----------------------------------------------------
 printStr:
-	li	a7, 4			# syscall for print string
-	ecall				# print string
-	jalr	zero, 0(ra)		# return
-
+	li	a7, 4			# load syscal(4) to the (a7) for printing string
+	ecall				# printing string to the console
+	
+	jalr	zero, 0(ra)		# return, void
+	
+	
+# ----------------------------------------------------
+# Occurring out of bound error, exiting by code 1
+# ----------------------------------------------------
+# ------------------- parameters ---------------------
+# N/A
+# ----------------------------------------------------
+# void
+# ----------------------------------------------------
 outOfBound:
-	la	a0, str_outOfBound 	# load 'out-of-bound-message' to (a0)
-	jal	printStr		# print 'out-of-bound-message'
-	li	a0, 1			# exit code = 1
-	li	a7, 93			# syscall for exit by code in (a0)
-	ecall				# exit by code 1
+	la	a0, str_outOfBound 	# loading 'out-of-bound-message' string
+	jal	printStr		# printing 'out-of-bound-message' string
+	
+	li	a0, 1			# loading exit-code 1
+	li	a7, 93			# load syscal(93) to the (a7) for exiting program
+	ecall				# exit program by code 1
 
+
+# ----------------------------------------------------
+# Exiting program by normal flow
+# ----------------------------------------------------
+# ------------------- parameters ---------------------
+# N/A
+# ----------------------------------------------------
+# void
+# ----------------------------------------------------
 exit:
-	li	a7, 10			# syscall for exit by code 0
-	ecall				# exit by code 0
+	li	a0, 0			# loading exit-code 0
+	li	a7, 93			# load syscal(93) to the (a7) for exiting program
+	ecall				# exit program by code 0
