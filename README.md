@@ -1,2 +1,2 @@
 # computer-organization
-programming with assembly RISC-V
+Programming with RISC-V Assembly
